@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react'
 // Klasör yapına tam uygun göreceli (relative) import yolu
-import { createClient } from '../../../utils/supabase/client'
-
+import { createClient } from '../../utils/supabase/client'
 interface Product {
   id: number
   title: string
