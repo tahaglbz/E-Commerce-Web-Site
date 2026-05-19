@@ -13,7 +13,7 @@ interface Product {
 }
 
 export default function AdminDashboard() {
-  // İstemciyi doğrudan burada başlatıyoruz. Supabase'in kendi tip yapısını otomatik kazanır.
+  // İstemciyi doğrudan burada başlatıyoruz
   const supabase = createClient()
   
   const [products, setProducts] = useState<Product[]>([])
@@ -26,32 +26,47 @@ export default function AdminDashboard() {
   const [price, setPrice] = useState('')
   const [type, setType] = useState<'PHYSICAL' | 'DIGITAL'>('PHYSICAL')
 
-  // Ürünleri Veritabanından Çekme Fonksiyonu
-  async function fetchProducts() {
-    setLoading(true)
+  // İlk render anında ürünleri çekme işlemini güvenli asenkron yapıyla yürütüyoruz
+  useEffect(() => {
+    async function loadProducts() {
+      setLoading(true)
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('id, title, price, type, description')
+          .order('created_at', { ascending: false })
+
+        if (error) {
+          console.error('Veri çekme hatası:', error.message)
+        } else if (data) {
+          setProducts(data as Product[])
+        }
+      } catch (err) {
+        console.error('Beklenmedik bir hata oluştu:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadProducts()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Yeni Ürün Eklendikten Sonra Listeyi Yenilemek İçin Kullanılacak Yardımcı Fonksiyon
+  async function refreshProductsList() {
     try {
       const { data, error } = await supabase
         .from('products')
         .select('id, title, price, type, description')
         .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('Veri çekme hatası:', error.message)
-      } else if (data) {
+      if (!error && data) {
         setProducts(data as Product[])
       }
     } catch (err) {
-      console.error('Beklenmedik bir hata oluştu:', err)
-    } finally {
-      setLoading(false)
+      console.error('Liste yenilenirken hata oluştu:', err)
     }
   }
-
-  // İlk render anında ürünleri çekiyoruz
-  useEffect(() => {
-    fetchProducts()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   // Yeni Ürün Kaydetme Fonksiyonu
   async function handleSubmit(e: React.FormEvent) {
@@ -80,8 +95,8 @@ export default function AdminDashboard() {
         setTitle('')
         setDescription('')
         setPrice('')
-        // Listeyi yenile
-        fetchProducts()
+        // Listeyi güvenle yenile
+        await refreshProductsList()
       }
     } catch (err) {
       console.error('Kayıt esnasında hata oluştu:', err)
@@ -104,7 +119,7 @@ export default function AdminDashboard() {
         alert('Ürün silinirken bir hata oluştu: ' + error.message)
       } else {
         alert('Ürün başarıyla silindi.')
-        fetchProducts()
+        await refreshProductsList()
       }
     } catch (err) {
       console.error('Silme esnasında hata oluştu:', err)
