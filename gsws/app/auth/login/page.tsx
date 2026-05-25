@@ -1,24 +1,34 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, useEffect, Suspense } from 'react'
 import { createClient } from '@/app/utils/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { syncLocalCartToSupabase, getLocalCartCount } from '@/app/utils/cartUtils'
 
-export default function Login() {
+// ── İç bileşen: useSearchParams burada kullanılıyor ──────────────
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
+
+  const returnTo = searchParams.get('returnTo') || '/products'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hasLocalCart, setHasLocalCart] = useState(false)
+
+  // Misafir sepetinde ürün var mı kontrol et
+  useEffect(() => {
+    setHasLocalCart(getLocalCartCount() > 0)
+  }, [])
 
   async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
 
-    // Validate
     if (!email || !password) {
       setError('Lütfen email ve şifrenizi girin.')
       return
@@ -34,9 +44,10 @@ export default function Login() {
 
       if (loginError) {
         setError(loginError.message)
-      } else {
-        // Login başarılı
-        router.push('/products')
+      } else if (data.user) {
+        // ── Giriş başarılı: LocalStorage sepetini Supabase'e senkronize et ──
+        await syncLocalCartToSupabase(data.user.id)
+        router.push(returnTo)
       }
     } catch (err) {
       setError('Bir hata oluştu. Lütfen tekrar deneyin.')
@@ -57,9 +68,20 @@ export default function Login() {
           <p className="text-zinc-400 text-sm">Hesabınıza Giriş Yapın</p>
         </div>
 
+        {/* Misafir Sepet Bildirimi */}
+        {hasLocalCart && (
+          <div className="mb-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-3">
+            <span className="text-2xl">🛒</span>
+            <div>
+              <p className="text-amber-400 text-sm font-semibold">Sepetinizde ürün var!</p>
+              <p className="text-amber-400/70 text-xs">Giriş yaptıktan sonra misafir sepetiniz otomatik olarak kaydedilecektir.</p>
+            </div>
+          </div>
+        )}
+
         {/* Form Card */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl">
-          
+
           {/* Error Message */}
           {error && (
             <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
@@ -109,7 +131,8 @@ export default function Login() {
             >
               {loading ? (
                 <>
-                  <span className="animate-spin">⏳</span> Giriş Yapılıyor...
+                  <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                  {hasLocalCart ? 'Giriş & Sepet senkronize ediliyor...' : 'Giriş Yapılıyor...'}
                 </>
               ) : (
                 <>
@@ -124,7 +147,7 @@ export default function Login() {
             <p className="text-zinc-400 text-sm">
               Henüz hesabın yok mu?{' '}
               <Link
-                href="/auth/signup"
+                href={`/auth/signup${returnTo !== '/products' ? `?returnTo=${encodeURIComponent(returnTo)}` : ''}`}
                 className="text-pink-500 hover:text-pink-400 font-semibold transition"
               >
                 Kaydol
@@ -133,12 +156,27 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Demo Info */}
-        <div className="mt-8 p-4 bg-zinc-900/50 border border-zinc-800 rounded-lg text-center">
-          <p className="text-xs text-zinc-400 mb-2">🎯 Demo Erişimi</p>
-          <p className="text-xs text-zinc-500">Giriş yaparak alışverişe başlayabilirsiniz. Sepet ve siparişleriniz kaydedilecektir.</p>
+        {/* Info */}
+        <div className="mt-6 p-4 bg-zinc-900/50 border border-zinc-800 rounded-lg text-center">
+          <p className="text-xs text-zinc-400 mb-1">🎯 Misafir Alışveriş</p>
+          <p className="text-xs text-zinc-500">
+            Sepete ürün eklemek için giriş yapmanıza gerek yok. Ödeme aşamasında giriş yapmanız yeterli.
+          </p>
         </div>
       </div>
     </div>
+  )
+}
+
+// ── Dışa aktarılan sayfa: Suspense wrapper ile ────────────────────
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full border-4 border-pink-500 border-t-transparent animate-spin" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }
