@@ -133,6 +133,7 @@ export default function CheckoutPage() {
 
   // ── Auth & Sepet ─────────────────────────────────────────────────
   const [userId, setUserId]       = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
   const [cartItems, setCartItems] = useState<UnifiedCartItem[]>([])
   const [loading, setLoading]     = useState(true)
 
@@ -175,6 +176,7 @@ export default function CheckoutPage() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { router.replace('/auth/login?returnTo=/checkout'); return }
         setUserId(user.id)
+        setUserEmail(user.email || null)
 
         // localStorage'daki ürünleri DB'ye senkronize et (giriş sonrası geldiyse)
         await syncLocalCartToSupabase(user.id)
@@ -255,7 +257,7 @@ export default function CheckoutPage() {
           user_id: userId,
           customer_name: `${firstName} ${lastName}`.trim(),
           customer_phone: phone,
-          customer_email: null,
+          customer_email: userEmail,
           status: 'PENDING',
           total_price: total,
         })
@@ -298,7 +300,7 @@ export default function CheckoutPage() {
     } finally {
       setSubmitting(false)
     }
-  }, [userId, cartItems, firstName, lastName, phone, address, total, cardNumber, cardExpiry, cardCvc, cardHolder]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [userId, userEmail, cartItems, firstName, lastName, phone, address, total, cardNumber, cardExpiry, cardCvc, cardHolder]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Loading ───────────────────────────────────────────────────────
   if (loading) return (
@@ -336,7 +338,7 @@ export default function CheckoutPage() {
       `}</style>
 
       {/* Header */}
-      <header className="bg-zinc-900/60 border-b border-zinc-800/60 sticky top-0 z-40 backdrop-blur-md">
+      <header className="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
           <Link href="/cart" className="text-pink-500 hover:text-pink-400 text-sm font-medium transition flex items-center gap-1.5">
             ← Sepete Dön

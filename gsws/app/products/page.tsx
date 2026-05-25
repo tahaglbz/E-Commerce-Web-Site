@@ -45,7 +45,7 @@ export default function ProductsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-950 to-black text-zinc-100">
       {/* Header */}
-      <header className="bg-zinc-900/50 border-b border-zinc-800 sticky top-0 z-40">
+      <header className="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex justify-between items-center mb-6">
             <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent">
@@ -55,15 +55,6 @@ export default function ProductsPage() {
               <Link href="/cart" className="px-4 py-2 bg-violet-600 hover:bg-violet-700 rounded-lg text-sm font-medium transition">
                 🛒 Sepet
               </Link>
-              <button
-                onClick={async () => {
-                  await supabase.auth.signOut()
-                  window.location.href = '/auth/login'
-                }}
-                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm font-medium transition"
-              >
-                🚪 Çıkış
-              </button>
             </div>
           </div>
 

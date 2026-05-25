@@ -414,8 +414,8 @@ export default function CartPage() {
     const { data: userData } = await supabase.auth.getUser()
 
     if (!userData.user) {
-      // Giriş yapılmamış → login modalı göster
-      setLoginModalOpen(true)
+      // Giriş yapılmamış → /login sayfasına yönlendir
+      router.push('/auth/login?returnTo=/checkout')
       return
     }
 
@@ -474,7 +474,7 @@ export default function CartPage() {
       <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
 
       {/* Header */}
-      <header className="bg-zinc-900/60 border-b border-zinc-800/60 sticky top-0 z-40 backdrop-blur-md">
+      <header className="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <Link href="/products" className="text-pink-500 hover:text-pink-400 text-sm font-medium transition">
             ← Alışverişe Devam Et

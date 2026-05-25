@@ -51,18 +51,8 @@ function ProductModal({ product, isOpen, onClose, onSave, categories, subCategor
   const [deletedVariantIds, setDeletedVariantIds] = useState<number[]>([])
   const [loadingVariants, setLoadingVariants] = useState(false)
 
-  useEffect(() => {
-    if (product && isOpen) {
-      const t = setTimeout(() => {
-        setFormData({ ...product })
-        setDeletedVariantIds([])
-        loadVariants(product.id)
-      }, 0)
-      return () => clearTimeout(t)
-    }
-  }, [product, isOpen]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function loadVariants(productId: number) {
+  // async fonksiyonu useCallback ile sarmalıyoruz
+  const loadVariants = useCallback(async (productId: number) => {
     setLoadingVariants(true)
     try {
       const { data } = await supabase.from('product_variants').select('*').eq('product_id', productId).order('id')
@@ -70,7 +60,15 @@ function ProductModal({ product, isOpen, onClose, onSave, categories, subCategor
     } finally {
       setLoadingVariants(false)
     }
-  }
+  }, [supabase])
+
+  useEffect(() => {
+    if (product && isOpen) {
+      setFormData({ ...product })
+      setDeletedVariantIds([])
+      loadVariants(product.id)
+    }
+  }, [product, isOpen, loadVariants])
 
   if (!isOpen || !product) return null
 
@@ -495,39 +493,6 @@ function DimensionVariantForm({ rows, onChange }: DimensionVariantFormProps) {
 export default function AdminDashboard() {
   const supabase = createClient()
 
-  // ── Admin Yetki Kontrolü (client-side çift savunma katmanı) ──────
-  const ADMIN_EMAILS = ['tahagulbaz@gmail.com']
-  const [authChecked, setAuthChecked] = useState(false)
-  const [isAuthorized, setIsAuthorized] = useState(false)
-
-  useEffect(() => {
-    async function checkAdminAuth() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        const email = user?.email?.toLowerCase() ?? ''
-        if (ADMIN_EMAILS.includes(email)) {
-          setIsAuthorized(true)
-        } else {
-          console.warn('[Admin Guard] Yetkisiz erişim engellendi:', email || 'Giriş yapılmamış')
-          window.location.replace('/')
-        }
-      } finally {
-        setAuthChecked(true)
-      }
-    }
-    checkAdminAuth()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Yetki kontrol ekranı — hiçbir veri gösterilmez
-  if (!authChecked || !isAuthorized) {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 rounded-full border-4 border-pink-500 border-t-transparent animate-spin" />
-        <p className="text-zinc-400 text-sm">Yetki doğrulanıyor...</p>
-      </div>
-    )
-  }
-
   // ── Veri State ────────────────────────────────────────────────────
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -536,7 +501,6 @@ export default function AdminDashboard() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([])
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
-
 
   // ── Yeni Ürün Form State ──────────────────────────────────────────
   const [newProductTitle, setNewProductTitle] = useState('')
@@ -576,38 +540,39 @@ export default function AdminDashboard() {
   const variantMode = categoryType(selectedCatName) // 'clothing' | 'decoration' | 'none'
 
   // ── Veri Yükleme ─────────────────────────────────────────────────
-  const loadData = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [
-        { data: productsData },
-        { data: categoriesData },
-        { data: subCategoriesData },
-        { data: ordersData },
-        { data: orderItemsData },
-        { data: cartItemsData },
-      ] = await Promise.all([
-        supabase.from('products').select('*').order('created_at', { ascending: false }),
-        supabase.from('categories').select('*').order('name'),
-        supabase.from('sub_categories').select('*').order('name'),
-        supabase.from('orders').select('*').order('created_at', { ascending: false }),
-        supabase.from('order_items').select('*'),
-        supabase.from('cart_items').select('*'),
-      ])
-      if (productsData) setProducts(productsData as Product[])
-      if (categoriesData) setCategories(categoriesData as Category[])
-      if (subCategoriesData) setSubCategories(subCategoriesData as SubCategory[])
-      if (ordersData) setOrders(ordersData as Order[])
-      if (orderItemsData) setOrderItems(orderItemsData as OrderItem[])
-      if (cartItemsData) setCartItems(cartItemsData as CartItem[])
-    } catch (err) {
-      console.error('Veri yükleme hatası:', err)
-    } finally {
-      setLoading(false)
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true)
+      try {
+        const [
+          { data: productsData },
+          { data: categoriesData },
+          { data: subCategoriesData },
+          { data: ordersData },
+          { data: orderItemsData },
+          { data: cartItemsData },
+        ] = await Promise.all([
+          supabase.from('products').select('*').order('created_at', { ascending: false }),
+          supabase.from('categories').select('*').order('name'),
+          supabase.from('sub_categories').select('*').order('name'),
+          supabase.from('orders').select('*').order('created_at', { ascending: false }),
+          supabase.from('order_items').select('*'),
+          supabase.from('cart_items').select('*'),
+        ])
+        if (productsData) setProducts(productsData as Product[])
+        if (categoriesData) setCategories(categoriesData as Category[])
+        if (subCategoriesData) setSubCategories(subCategoriesData as SubCategory[])
+        if (ordersData) setOrders(ordersData as Order[])
+        if (orderItemsData) setOrderItems(orderItemsData as OrderItem[])
+        if (cartItemsData) setCartItems(cartItemsData as CartItem[])
+      } catch (err) {
+        console.error('Veri yükleme hatası:', err)
+      } finally {
+        setLoading(false)
+      }
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => { loadData() }, [loadData])
+    loadData()
+  }, [])
 
   // ── Resim Seçimi ──────────────────────────────────────────────────
   function handleImageSelect(file: File | null) {
@@ -929,7 +894,7 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-950 to-black text-zinc-100">
       {/* Header */}
-      <header className="bg-zinc-900/50 border-b border-zinc-800 sticky top-0 z-40 backdrop-blur-md">
+      <header className="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <Link href="/" className="text-pink-500 hover:text-pink-400 text-sm font-medium transition">← Ana Sayfa</Link>
           <h1 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent">🏢 TC Gift Shop Admin</h1>
@@ -1242,7 +1207,7 @@ export default function AdminDashboard() {
                         <span className="text-3xl">ℹ️</span>
                         <div>
                           <p className="text-sm font-semibold text-zinc-300">Bu kategori için varyant eklenmez</p>
-                          <p className="text-xs text-zinc-500 mt-0.5">Hediyelik ve Dijital ürünler için yukarıdaki "Genel Stok" alanını kullanın.</p>
+                          <p className="text-xs text-zinc-500 mt-0.5">Hediyelik ve Dijital ürünler için yukarıdaki &quot;Genel Stok&quot; alanını kullanın.</p>
                         </div>
                       </div>
                     )}

@@ -328,7 +328,7 @@ export default function ProductDetailPage() {
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* ── HEADER ────────────────────────────────────────────────── */}
-      <header className="bg-zinc-900/60 border-b border-zinc-800/60 sticky top-0 z-40 backdrop-blur-md">
+      <header className="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <Link href="/products"
             className="text-pink-500 hover:text-pink-400 text-sm font-medium transition flex items-center gap-1.5">

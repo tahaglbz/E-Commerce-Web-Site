@@ -1,3 +1,5 @@
+import Navbar from '@/app/components/Navbar'
+
 // Ürünler bölümü için dynamic layout — runtime Supabase env var gerektirir
 export const dynamic = 'force-dynamic'
 
@@ -6,5 +8,10 @@ export default function ProductsLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  return <>{children}</>
+  return (
+    <>
+      <Navbar />
+      {children}
+    </>
+  )
 }

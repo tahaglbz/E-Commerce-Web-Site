@@ -25,24 +25,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // ── 1) ADMIN GÜVENLIK DUVARI ─────────────────────────────────────
-  // /admin rotasına erişim → sadece yetkili email adresleri
-  if (pathname.startsWith('/admin')) {
-    if (!user) {
-      // Giriş yapılmamış → login sayfasına yönlendir
-      const loginUrl = new URL('/auth/login', request.url)
-      loginUrl.searchParams.set('returnTo', pathname)
-      return NextResponse.redirect(loginUrl)
-    }
-    const email = user.email?.toLowerCase() ?? ''
-    if (!ADMIN_EMAILS.includes(email)) {
-      // Yetkisiz kullanıcı → ana sayfaya gönder, 403 statüsü yok (güvenlik için)
-      console.warn(`[ADMIN GUARD] Yetkisiz erişim denemesi: ${email} → /admin`)
-      return NextResponse.redirect(new URL('/', request.url))
-    }
-  }
-
-  // ── 2) CHECKOUT GÜVENLIK DUVARI ──────────────────────────────────
+  // ── 1) CHECKOUT GÜVENLIK DUVARI ──────────────────────────────────
   // /checkout rotasına erişim → giriş zorunlu
   if (pathname.startsWith('/checkout')) {
     if (!user) {

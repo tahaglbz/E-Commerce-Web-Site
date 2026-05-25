@@ -31,30 +31,19 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-950 to-black text-zinc-100">
       {/* Navbar */}
-      <nav className="bg-zinc-900/50 border-b border-zinc-800 sticky top-0 z-50">
+      <nav className="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent">
             🎁 TC Gift Shop
           </h1>
           <div className="flex gap-3">
-            {user ? (
-              <>
-                <Link href="/products" className="px-4 py-2 bg-violet-600 hover:bg-violet-700 rounded-lg text-sm font-medium transition">
-                  🛍️ Alışverişe Git
-                </Link>
-                <Link href="/admin" className="px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded-lg text-sm font-medium transition">
-                  ⚙️ Admin Panel
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link href="/auth/login" className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm font-medium transition">
-                  🔐 Giriş Yap
-                </Link>
-                <Link href="/auth/signup" className="px-4 py-2 bg-pink-600 hover:bg-pink-700 rounded-lg text-sm font-medium transition">
-                  ✨ Kaydol
-                </Link>
-              </>
+            <Link href="/products" className="px-4 py-2 bg-violet-600 hover:bg-violet-700 rounded-lg text-sm font-medium transition">
+              🛍️ Alışverişe Git
+            </Link>
+            {user && (
+              <Link href="/admin" className="px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded-lg text-sm font-medium transition">
+                ⚙️ Admin Panel
+              </Link>
             )}
           </div>
         </div>
