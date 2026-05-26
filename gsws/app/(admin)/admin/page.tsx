@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/app/utils/supabase/client'
 import {
   Product,
@@ -17,7 +18,6 @@ import {
   DimensionVariantRow,
   SizeStockRow,
 } from '@/app/types'
-import Link from 'next/link'
 
 // ─────────────────────────────────────────────────────────────────
 // KATEGORİ SINIFLANDIRMA YARDIMCILARI
@@ -528,12 +528,14 @@ export default function AdminDashboard() {
   ])
 
   // ── Tab & Modal ───────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<'orders' | 'abandoned-carts' | 'products' | 'add-product'>('orders')
+  const [activeTab, setActiveTab] = useState<'orders' | 'approved-orders' | 'abandoned-carts' | 'products' | 'add-product'>('orders')
   const [selectedProductForEdit, setSelectedProductForEdit] = useState<Product | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [savingModal, setSavingModal] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
+  const [trackingCodes, setTrackingCodes] = useState<Record<number, string>>({})
+  const [savingTracking, setSavingTracking] = useState<Record<number, boolean>>({})
 
   // ── Kategori Tipi (seçili kategoriye göre) ───────────────────────
   const selectedCatName = categories.find((c) => c.id === parseInt(newProductCategory))?.name || ''
@@ -562,7 +564,17 @@ export default function AdminDashboard() {
         if (productsData) setProducts(productsData as Product[])
         if (categoriesData) setCategories(categoriesData as Category[])
         if (subCategoriesData) setSubCategories(subCategoriesData as SubCategory[])
-        if (ordersData) setOrders(ordersData as Order[])
+        if (ordersData) {
+          setOrders(ordersData as Order[])
+          // Mevcut tracking code'ları state'e yükle
+          const codes: Record<number, string> = {}
+          ordersData.forEach((order: Order) => {
+            if (order.tracking_code) {
+              codes[order.id] = order.tracking_code
+            }
+          })
+          setTrackingCodes(codes)
+        }
         if (orderItemsData) setOrderItems(orderItemsData as OrderItem[])
         if (cartItemsData) setCartItems(cartItemsData as CartItem[])
       } catch (err) {
@@ -855,6 +867,26 @@ export default function AdminDashboard() {
     }
   }
 
+  // ── Kargo Takip Kodu Kaydet ──────────────────────────────────────
+  async function handleSaveTrackingCode(orderId: number) {
+    setSavingTracking((prev) => ({ ...prev, [orderId]: true }))
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ tracking_code: trackingCodes[orderId] || null })
+        .eq('id', orderId)
+      
+      if (!error) {
+        setOrders(orders.map((o) => o.id === orderId ? { ...o, tracking_code: trackingCodes[orderId] } : o))
+        alert('✅ Kargo takip kodu kaydedildi!')
+      } else {
+        alert(`❌ Hata: ${error.message}`)
+      }
+    } finally {
+      setSavingTracking((prev) => ({ ...prev, [orderId]: false }))
+    }
+  }
+
   // ── Ürün Sil ──────────────────────────────────────────────────────
   async function handleDeleteProduct(productId: number) {
     if (!confirm('Bu ürünü silmek istediğinize emin misiniz? Tüm varyantlar da silinecek.')) return
@@ -888,6 +920,7 @@ export default function AdminDashboard() {
   })
 
   const pendingOrders = orders.filter((o) => o.status === 'PENDING')
+  const approvedOrders = orders.filter((o) => o.status === 'APPROVED')
   const newProductCategorySubList = subCategories.filter((sub) => sub.category_id === parseInt(newProductCategory))
 
   // ─────────────────────────────────────────────────────────────────
@@ -907,6 +940,7 @@ export default function AdminDashboard() {
         <div className="max-w-7xl mx-auto px-4 flex gap-1 overflow-x-auto">
           {[
             { id: 'orders' as const, label: '📥 Sipariş Onayı', count: pendingOrders.length },
+            { id: 'approved-orders' as const, label: '✅ Onaylanan Siparişler', count: approvedOrders.length },
             { id: 'abandoned-carts' as const, label: '🛒 Terkedilmiş Sepet', count: abandonedCartsMap.size },
             { id: 'products' as const, label: '📦 Ürün Yönetimi', count: filteredProducts.length },
             { id: 'add-product' as const, label: '➕ Ürün Ekle', count: 0 },
@@ -943,22 +977,49 @@ export default function AdminDashboard() {
                       return (
                         <div key={order.id} className="bg-zinc-900 border-2 border-amber-500/30 hover:border-amber-500 rounded-xl p-6 transition">
                           <div className="flex flex-col md:flex-row justify-between gap-6">
-                            <div className="space-y-2 flex-1">
-                              <div className="flex items-center gap-3">
-                                <h3 className="text-lg font-bold text-white">{order.customer_name}</h3>
-                                <span className="text-xs bg-amber-500/10 text-amber-400 px-2 py-1 rounded border border-amber-500/20">⏳ ONAY BEKLİYOR</span>
+                            <div className="space-y-4 flex-1">
+                              <div>
+                                <div className="flex items-center gap-3">
+                                  <h3 className="text-lg font-bold text-white">{order.customer_name}</h3>
+                                  <span className="text-xs bg-amber-500/10 text-amber-400 px-2 py-1 rounded border border-amber-500/20">⏳ ONAY BEKLİYOR</span>
+                                </div>
+                                <p className="text-sm text-zinc-400">📞 {order.customer_phone}</p>
+                                {order.customer_email && <p className="text-sm text-zinc-400">📧 {order.customer_email}</p>}
                               </div>
-                              <p className="text-sm text-zinc-400">📞 {order.customer_phone}</p>
-                              {order.customer_email && <p className="text-sm text-zinc-400">📧 {order.customer_email}</p>}
-                              <div className="bg-zinc-950 rounded-lg p-3 mt-2">
-                                <p className="text-xs font-semibold text-zinc-300 mb-2">Sipariş Öğeleri:</p>
+
+                              {/* Sipariş Öğeleri */}
+                              <div className="bg-zinc-950 rounded-lg p-4">
+                                <p className="text-xs font-semibold text-zinc-300 mb-3">Sipariş Öğeleri:</p>
                                 {items.length > 0 ? (
-                                  <ul className="space-y-1">
-                                    {items.map((item, idx) => (
-                                      <li key={idx} className="text-xs text-zinc-400">
-                                        • {products.find((p) => p.id === item.product_id)?.title} (x{item.quantity})
-                                      </li>
-                                    ))}
+                                  <ul className="space-y-3">
+                                    {items.map((item, idx) => {
+                                      const product = products.find((p) => p.id === item.product_id)
+                                      return (
+                                        <li key={idx} className="text-xs text-zinc-400 flex items-center justify-between gap-3 pb-3 border-b border-zinc-800 last:border-0">
+                                          <div className="flex items-center gap-3 flex-1">
+                                            {/* Ürün Resmi */}
+                                            {product?.image_url ? (
+                                              <Link href={`/products/${product.id}`}>
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={product.image_url} alt={product.title} className="w-12 h-12 rounded-lg object-cover hover:opacity-80 transition cursor-pointer" />
+                                              </Link>
+                                            ) : (
+                                              <Link href={`/products/${product?.id}`}>
+                                                <div className="w-12 h-12 rounded-lg bg-zinc-800 flex items-center justify-center text-lg hover:opacity-80 transition cursor-pointer">🖼️</div>
+                                              </Link>
+                                            )}
+                                            {/* Ürün Bilgisi */}
+                                            <div className="flex-1">
+                                              <Link href={`/products/${product?.id}`}>
+                                                <p className="text-sm text-zinc-300 hover:text-pink-400 transition cursor-pointer font-medium">{product?.title}</p>
+                                              </Link>
+                                              <p className="text-xs text-zinc-500">x{item.quantity}</p>
+                                            </div>
+                                          </div>
+                                          <span className="font-semibold text-emerald-400 whitespace-nowrap">{item.price.toFixed(2)} ₺</span>
+                                        </li>
+                                      )
+                                    })}
                                   </ul>
                                 ) : <p className="text-xs text-zinc-500">Ürün bilgisi bulunamadı</p>}
                               </div>
@@ -969,6 +1030,113 @@ export default function AdminDashboard() {
                                 <p className="text-2xl font-bold text-emerald-400">{order.total_price.toFixed(2)} ₺</p>
                               </div>
                               <button onClick={() => handleApproveOrder(order.id)} className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition">✅ Siparişi Onayla</button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── TAB: ONAYLANAN SİPARİŞLER ── */}
+            {activeTab === 'approved-orders' && (
+              <div>
+                <h2 className="text-2xl font-bold mb-6">✅ Onaylanan Siparişler</h2>
+                {approvedOrders.length === 0 ? (
+                  <div className="text-center py-16"><p className="text-4xl mb-3">📭</p><p className="text-zinc-400">Onaylanan sipariş bulunmuyor</p></div>
+                ) : (
+                  <div className="space-y-4">
+                    {approvedOrders.map((order) => {
+                      const items = orderItems.filter((oi) => oi.order_id === order.id)
+                      return (
+                        <div key={order.id} className="bg-zinc-900 border-2 border-emerald-500/30 hover:border-emerald-500 rounded-xl p-6 transition">
+                          <div className="flex flex-col md:flex-row justify-between gap-6">
+                            {/* Müşteri Bilgileri */}
+                            <div className="space-y-3 flex-1">
+                              <div className="flex items-center gap-3">
+                                <h3 className="text-lg font-bold text-white">{order.customer_name}</h3>
+                                <span className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded border border-emerald-500/20">✅ ONAYLANDI</span>
+                              </div>
+                              
+                              {/* Müşteri İletişim Bilgileri */}
+                              <div className="bg-zinc-950 rounded-lg p-4 space-y-2">
+                                <p className="text-sm font-semibold text-zinc-300">Müşteri Detayları:</p>
+                                <p className="text-sm text-zinc-400">📞 {order.customer_phone}</p>
+                                {order.customer_email && <p className="text-sm text-zinc-400">📧 {order.customer_email}</p>}
+                                <p className="text-sm text-zinc-400">🆔 User ID: <span className="font-mono">{order.user_id?.slice(0, 8)}...</span></p>
+                                <p className="text-sm text-zinc-400">📅 {new Date(order.created_at).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                              </div>
+
+                              {/* Sipariş Öğeleri */}
+                              <div className="bg-zinc-950 rounded-lg p-4">
+                                <p className="text-xs font-semibold text-zinc-300 mb-3">Sipariş Öğeleri:</p>
+                                {items.length > 0 ? (
+                                  <ul className="space-y-3">
+                                    {items.map((item, idx) => {
+                                      const product = products.find((p) => p.id === item.product_id)
+                                      return (
+                                        <li key={idx} className="text-xs text-zinc-400 flex items-center justify-between gap-3 pb-3 border-b border-zinc-800 last:border-0">
+                                          <div className="flex items-center gap-3 flex-1">
+                                            {/* Ürün Resmi */}
+                                            {product?.image_url ? (
+                                              <Link href={`/products/${product.id}`}>
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={product.image_url} alt={product.title} className="w-12 h-12 rounded-lg object-cover hover:opacity-80 transition cursor-pointer" />
+                                              </Link>
+                                            ) : (
+                                              <Link href={`/products/${product?.id}`}>
+                                                <div className="w-12 h-12 rounded-lg bg-zinc-800 flex items-center justify-center text-lg hover:opacity-80 transition cursor-pointer">🖼️</div>
+                                              </Link>
+                                            )}
+                                            {/* Ürün Bilgisi */}
+                                            <div className="flex-1">
+                                              <Link href={`/products/${product?.id}`}>
+                                                <p className="text-sm text-zinc-300 hover:text-pink-400 transition cursor-pointer font-medium">{product?.title}</p>
+                                              </Link>
+                                              <p className="text-xs text-zinc-500">x{item.quantity}</p>
+                                            </div>
+                                          </div>
+                                          <span className="font-semibold text-emerald-400 whitespace-nowrap">{item.price.toFixed(2)} ₺</span>
+                                        </li>
+                                      )
+                                    })}
+                                  </ul>
+                                ) : <p className="text-xs text-zinc-500">Ürün bilgisi bulunamadı</p>}
+                              </div>
+
+                              {/* Kargo Takip Kodu */}
+                              <div className="bg-zinc-950 rounded-lg p-4">
+                                <p className="text-xs font-semibold text-zinc-300 mb-3">🚚 Kargo Takip Kodu:</p>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Takip kodunu girin..."
+                                    value={trackingCodes[order.id] || order.tracking_code || ''}
+                                    onChange={(e) => setTrackingCodes((prev) => ({ ...prev, [order.id]: e.target.value }))}
+                                    className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-500 transition"
+                                  />
+                                  <button
+                                    onClick={() => handleSaveTrackingCode(order.id)}
+                                    disabled={savingTracking[order.id]}
+                                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-zinc-700 text-white font-semibold text-sm rounded-lg transition"
+                                  >
+                                    {savingTracking[order.id] ? '💾...' : '💾 Kaydet'}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Tutar Bilgisi */}
+                            <div className="flex flex-col justify-between md:items-end gap-3">
+                              <div className="text-right bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
+                                <p className="text-xs text-zinc-400">Toplam Tutar</p>
+                                <p className="text-3xl font-bold text-emerald-400">{order.total_price.toFixed(2)} ₺</p>
+                              </div>
+                              <div className="text-xs text-center text-zinc-500">
+                                <p>Sipariş #{order.id}</p>
+                              </div>
                             </div>
                           </div>
                         </div>

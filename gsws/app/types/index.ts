@@ -141,6 +141,7 @@ export interface Order {
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
   total_price: number
   applied_coupon?: string | null
+  tracking_code?: string | null
   created_at: string
   updated_at: string
 }
@@ -152,7 +153,7 @@ export interface OrderItem {
   variant_id?: number | null
   quantity: number
   price: number
-  selected_variants: Record<string, string>
+  selected_variants: Record<string, string | null>
   created_at: string
 }
 
