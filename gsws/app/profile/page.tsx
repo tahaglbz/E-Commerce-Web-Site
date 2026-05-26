@@ -8,6 +8,19 @@ import Navbar from '@/app/components/Navbar'
 import { Order } from '@/app/types'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
+// ── Durum Rozeti ──────────────────────────────────────────────────
+function StatusBadge({ status }: { status: Order['status'] }) {
+  const map: Record<Order['status'], { label: string; cls: string }> = {
+    PENDING:          { label: '⏳ Beklemede',       cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+    APPROVED:         { label: '✅ Onaylandı',       cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+    REJECTED:         { label: '❌ Reddedildi',      cls: 'bg-red-500/20 text-red-400 border-red-500/30' },
+    CANCELLED:        { label: '🚫 İptal Edildi',    cls: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30' },
+    CANCEL_REQUESTED: { label: '⏳ İptal İncelemede', cls: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
+  }
+  const s = map[status] ?? { label: status, cls: 'bg-zinc-700 text-zinc-300 border-zinc-600' }
+  return <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${s.cls}`}>{s.label}</span>
+}
+
 export default function ProfilePage() {
   const router = useRouter()
   const supabase = createClient()
@@ -16,6 +29,7 @@ export default function ProfilePage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [savingAddress, setSavingAddress] = useState(false)
+  const [cancelling, setCancelling] = useState<Record<number, boolean>>({})
 
   // Form state
   const [address, setAddress] = useState('')
@@ -24,7 +38,6 @@ export default function ProfilePage() {
   useEffect(() => {
     async function loadUserData() {
       try {
-        // Kullanıcı kontrolü
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) {
           router.push('/auth/login?returnTo=/profile')
@@ -44,7 +57,7 @@ export default function ProfilePage() {
           setOrders(ordersData as Order[])
         }
 
-        // LocalStorage'dan adresi yükle (örnek)
+        // LocalStorage'dan adresi yükle
         const savedAddress = localStorage.getItem('user_address')
         if (savedAddress) {
           setAddress(savedAddress)
@@ -57,13 +70,12 @@ export default function ProfilePage() {
     }
 
     loadUserData()
-  }, [supabase, router])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Adresi kaydet
   async function handleSaveAddress(e: React.FormEvent) {
     e.preventDefault()
     setSavingAddress(true)
-
     try {
       if (address.trim()) {
         localStorage.setItem('user_address', address)
@@ -74,6 +86,44 @@ export default function ProfilePage() {
       console.error('Adres kaydedilirken hata:', error)
     } finally {
       setSavingAddress(false)
+    }
+  }
+
+  // ── Siparişi İptal Et (PENDING → CANCELLED) ────────────────────
+  async function handleCancelOrder(orderId: number) {
+    if (!confirm('Bu siparişi iptal etmek istediğinize emin misiniz?')) return
+    setCancelling((p) => ({ ...p, [orderId]: true }))
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'CANCELLED' })
+        .eq('id', orderId)
+      if (!error) {
+        setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'CANCELLED' as const } : o))
+      } else {
+        alert(`Hata: ${error.message}`)
+      }
+    } finally {
+      setCancelling((p) => ({ ...p, [orderId]: false }))
+    }
+  }
+
+  // ── İptal Talebi Oluştur (APPROVED → CANCEL_REQUESTED) ─────────
+  async function handleRequestCancel(orderId: number) {
+    if (!confirm('Bu sipariş için iptal talebi oluşturmak istediğinize emin misiniz? Admin incelemesine gönderilecektir.')) return
+    setCancelling((p) => ({ ...p, [orderId]: true }))
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'CANCEL_REQUESTED' })
+        .eq('id', orderId)
+      if (!error) {
+        setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'CANCEL_REQUESTED' as const } : o))
+      } else {
+        alert(`Hata: ${error.message}`)
+      }
+    } finally {
+      setCancelling((p) => ({ ...p, [orderId]: false }))
     }
   }
 
@@ -197,7 +247,7 @@ export default function ProfilePage() {
             </form>
           </div>
 
-          {/* ── 3. SİPARİŞLERİM ── */}
+          {/* ── 3. SİPARİŞLERİM (İptal Butonları ile) ── */}
           <div className="md:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl p-8">
             <div className="flex items-center gap-3 mb-6">
               <span className="text-2xl">📦</span>
@@ -218,15 +268,9 @@ export default function ProfilePage() {
                   <div key={order.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 hover:border-pink-500/30 transition">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <p className="text-lg font-bold text-white">Sipariş #{order.id}</p>
-                          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                            order.status === 'APPROVED'
-                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                              : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                          }`}>
-                            {order.status === 'APPROVED' ? '✅ Onaylandı' : '⏳ Beklemede'}
-                          </span>
+                          <StatusBadge status={order.status} />
                         </div>
                         <p className="text-sm text-zinc-400 mb-3">
                           📅 {new Date(order.created_at).toLocaleDateString('tr-TR', {
@@ -244,11 +288,38 @@ export default function ProfilePage() {
                         </div>
                       </div>
 
-                      <div className="text-right">
-                        <p className="text-xs text-zinc-400 uppercase font-semibold mb-1">Toplam Tutar</p>
-                        <p className="text-3xl font-bold bg-gradient-to-r from-pink-400 to-violet-400 bg-clip-text text-transparent">
-                          {order.total_price.toFixed(2)} ₺
-                        </p>
+                      <div className="flex flex-col items-end gap-3">
+                        <div className="text-right">
+                          <p className="text-xs text-zinc-400 uppercase font-semibold mb-1">Toplam Tutar</p>
+                          <p className="text-3xl font-bold bg-gradient-to-r from-pink-400 to-violet-400 bg-clip-text text-transparent">
+                            {order.total_price.toFixed(2)} ₺
+                          </p>
+                        </div>
+
+                        {/* ── İPTAL BUTONLARI ── */}
+                        {order.status === 'PENDING' && (
+                          <button
+                            onClick={() => handleCancelOrder(order.id)}
+                            disabled={cancelling[order.id]}
+                            className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/40 hover:border-red-500 text-red-400 hover:text-red-300 text-sm font-bold rounded-xl transition disabled:opacity-50"
+                          >
+                            {cancelling[order.id] ? 'İptal ediliyor...' : '🚫 Siparişi İptal Et'}
+                          </button>
+                        )}
+                        {order.status === 'APPROVED' && (
+                          <button
+                            onClick={() => handleRequestCancel(order.id)}
+                            disabled={cancelling[order.id]}
+                            className="px-4 py-2 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/40 hover:border-orange-500 text-orange-400 hover:text-orange-300 text-sm font-bold rounded-xl transition disabled:opacity-50"
+                          >
+                            {cancelling[order.id] ? 'Gönderiliyor...' : '📝 İptal Talebi Oluştur'}
+                          </button>
+                        )}
+                        {order.status === 'CANCEL_REQUESTED' && (
+                          <span className="px-4 py-2 bg-orange-500/10 border border-orange-500/30 text-orange-400 text-sm font-bold rounded-xl">
+                            ⏳ İncelemede
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

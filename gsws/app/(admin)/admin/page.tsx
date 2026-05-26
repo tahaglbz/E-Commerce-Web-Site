@@ -64,9 +64,12 @@ function ProductModal({ product, isOpen, onClose, onSave, categories, subCategor
 
   useEffect(() => {
     if (product && isOpen) {
-      setFormData({ ...product })
-      setDeletedVariantIds([])
-      loadVariants(product.id)
+      // Defer all state updates to next microtask to prevent cascading renders
+      Promise.resolve().then(() => {
+        setFormData({ ...product })
+        setDeletedVariantIds([])
+        loadVariants(product.id)
+      })
     }
   }, [product, isOpen, loadVariants])
 
@@ -528,7 +531,7 @@ export default function AdminDashboard() {
   ])
 
   // ── Tab & Modal ───────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<'orders' | 'approved-orders' | 'abandoned-carts' | 'products' | 'add-product'>('orders')
+  const [activeTab, setActiveTab] = useState<'orders' | 'approved-orders' | 'cancel-requests' | 'abandoned-carts' | 'products' | 'add-product'>('orders')
   const [selectedProductForEdit, setSelectedProductForEdit] = useState<Product | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [savingModal, setSavingModal] = useState(false)
@@ -542,49 +545,51 @@ export default function AdminDashboard() {
   const variantMode = categoryType(selectedCatName) // 'clothing' | 'decoration' | 'none'
 
   // ── Veri Yükleme ─────────────────────────────────────────────────
-  useEffect(() => {
-    async function loadData() {
-      setLoading(true)
-      try {
-        const [
-          { data: productsData },
-          { data: categoriesData },
-          { data: subCategoriesData },
-          { data: ordersData },
-          { data: orderItemsData },
-          { data: cartItemsData },
-        ] = await Promise.all([
-          supabase.from('products').select('*').order('created_at', { ascending: false }),
-          supabase.from('categories').select('*').order('name'),
-          supabase.from('sub_categories').select('*').order('name'),
-          supabase.from('orders').select('*').order('created_at', { ascending: false }),
-          supabase.from('order_items').select('*'),
-          supabase.from('cart_items').select('*'),
-        ])
-        if (productsData) setProducts(productsData as Product[])
-        if (categoriesData) setCategories(categoriesData as Category[])
-        if (subCategoriesData) setSubCategories(subCategoriesData as SubCategory[])
-        if (ordersData) {
-          setOrders(ordersData as Order[])
-          // Mevcut tracking code'ları state'e yükle
-          const codes: Record<number, string> = {}
-          ordersData.forEach((order: Order) => {
-            if (order.tracking_code) {
-              codes[order.id] = order.tracking_code
-            }
-          })
-          setTrackingCodes(codes)
-        }
-        if (orderItemsData) setOrderItems(orderItemsData as OrderItem[])
-        if (cartItemsData) setCartItems(cartItemsData as CartItem[])
-      } catch (err) {
-        console.error('Veri yükleme hatası:', err)
-      } finally {
-        setLoading(false)
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [
+        { data: productsData },
+        { data: categoriesData },
+        { data: subCategoriesData },
+        { data: ordersData },
+        { data: orderItemsData },
+        { data: cartItemsData },
+      ] = await Promise.all([
+        supabase.from('products').select('*').order('created_at', { ascending: false }),
+        supabase.from('categories').select('*').order('name'),
+        supabase.from('sub_categories').select('*').order('name'),
+        supabase.from('orders').select('*').order('created_at', { ascending: false }),
+        supabase.from('order_items').select('*'),
+        supabase.from('cart_items').select('*'),
+      ])
+      if (productsData) setProducts(productsData as Product[])
+      if (categoriesData) setCategories(categoriesData as Category[])
+      if (subCategoriesData) setSubCategories(subCategoriesData as SubCategory[])
+      if (ordersData) {
+        setOrders(ordersData as Order[])
+        // Mevcut tracking code'ları state'e yükle
+        const codes: Record<number, string> = {}
+        ordersData.forEach((order: Order) => {
+          if (order.tracking_code) {
+            codes[order.id] = order.tracking_code
+          }
+        })
+        setTrackingCodes(codes)
       }
+      if (orderItemsData) setOrderItems(orderItemsData as OrderItem[])
+      if (cartItemsData) setCartItems(cartItemsData as CartItem[])
+    } catch (err) {
+      console.error('Veri yükleme hatası:', err)
+    } finally {
+      setLoading(false)
     }
-    loadData()
-  }, [])
+  }, [supabase])
+
+  useEffect(() => {
+    // Defer loadData to next microtask to prevent cascading renders
+    Promise.resolve().then(() => loadData())
+  }, [loadData])
 
   // ── Resim Seçimi ──────────────────────────────────────────────────
   function handleImageSelect(file: File | null) {
@@ -887,6 +892,34 @@ export default function AdminDashboard() {
     }
   }
 
+  // ── Siparişi İptal Et (Admin Gücü) ────────────────────────────────
+  async function handleCancelOrder(orderId: number) {
+    if (!confirm('Bu siparişi tamamen iptal etmek istediğinize emin misiniz?')) return
+    const { error } = await supabase.from('orders').update({ status: 'CANCELLED' }).eq('id', orderId)
+    if (!error) {
+      setOrders(orders.map((o) => o.id === orderId ? { ...o, status: 'CANCELLED' as const } : o))
+      alert('🚫 Sipariş iptal edildi!')
+    }
+  }
+
+  // ── İptal Talebini Onayla (CANCEL_REQUESTED → CANCELLED) ──────────
+  async function handleApproveCancelRequest(orderId: number) {
+    const { error } = await supabase.from('orders').update({ status: 'CANCELLED' }).eq('id', orderId)
+    if (!error) {
+      setOrders(orders.map((o) => o.id === orderId ? { ...o, status: 'CANCELLED' as const } : o))
+      alert('✅ İptal talebi onaylandı!')
+    }
+  }
+
+  // ── İptal Talebini Reddet (CANCEL_REQUESTED → APPROVED) ───────────
+  async function handleRejectCancelRequest(orderId: number) {
+    const { error } = await supabase.from('orders').update({ status: 'APPROVED' }).eq('id', orderId)
+    if (!error) {
+      setOrders(orders.map((o) => o.id === orderId ? { ...o, status: 'APPROVED' as const } : o))
+      alert('❌ İptal talebi reddedildi, sipariş onaylı duruma döndürüldü!')
+    }
+  }
+
   // ── Ürün Sil ──────────────────────────────────────────────────────
   async function handleDeleteProduct(productId: number) {
     if (!confirm('Bu ürünü silmek istediğinize emin misiniz? Tüm varyantlar da silinecek.')) return
@@ -921,6 +954,7 @@ export default function AdminDashboard() {
 
   const pendingOrders = orders.filter((o) => o.status === 'PENDING')
   const approvedOrders = orders.filter((o) => o.status === 'APPROVED')
+  const cancelRequestedOrders = orders.filter((o) => o.status === 'CANCEL_REQUESTED')
   const newProductCategorySubList = subCategories.filter((sub) => sub.category_id === parseInt(newProductCategory))
 
   // ─────────────────────────────────────────────────────────────────
@@ -941,6 +975,7 @@ export default function AdminDashboard() {
           {[
             { id: 'orders' as const, label: '📥 Sipariş Onayı', count: pendingOrders.length },
             { id: 'approved-orders' as const, label: '✅ Onaylanan Siparişler', count: approvedOrders.length },
+            { id: 'cancel-requests' as const, label: '🔴 İptal Talepleri', count: cancelRequestedOrders.length },
             { id: 'abandoned-carts' as const, label: '🛒 Terkedilmiş Sepet', count: abandonedCartsMap.size },
             { id: 'products' as const, label: '📦 Ürün Yönetimi', count: filteredProducts.length },
             { id: 'add-product' as const, label: '➕ Ürün Ekle', count: 0 },
@@ -985,6 +1020,7 @@ export default function AdminDashboard() {
                                 </div>
                                 <p className="text-sm text-zinc-400">📞 {order.customer_phone}</p>
                                 {order.customer_email && <p className="text-sm text-zinc-400">📧 {order.customer_email}</p>}
+                                {order.customer_address && <p className="text-sm text-zinc-400">🏠 {order.customer_address}</p>}
                               </div>
 
                               {/* Sipariş Öğeleri */}
@@ -997,22 +1033,23 @@ export default function AdminDashboard() {
                                       return (
                                         <li key={idx} className="text-xs text-zinc-400 flex items-center justify-between gap-3 pb-3 border-b border-zinc-800 last:border-0">
                                           <div className="flex items-center gap-3 flex-1">
-                                            {/* Ürün Resmi */}
-                                            {product?.image_url ? (
-                                              <Link href={`/products/${product.id}`}>
+                                            {/* Ürün Resmi (varyant resmi varsa onu göster) */}
+                                            {(item.variant_image_url || product?.image_url) ? (
+                                              <Link href={`/products/${product?.id}`}>
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img src={product.image_url} alt={product.title} className="w-12 h-12 rounded-lg object-cover hover:opacity-80 transition cursor-pointer" />
+                                                <img src={item.variant_image_url || product?.image_url || ''} alt={product?.title || ''} className="w-12 h-12 rounded-lg object-cover hover:opacity-80 transition cursor-pointer" />
                                               </Link>
                                             ) : (
                                               <Link href={`/products/${product?.id}`}>
                                                 <div className="w-12 h-12 rounded-lg bg-zinc-800 flex items-center justify-center text-lg hover:opacity-80 transition cursor-pointer">🖼️</div>
                                               </Link>
                                             )}
-                                            {/* Ürün Bilgisi */}
+                                            {/* Ürün Bilgisi + Varyant Adı */}
                                             <div className="flex-1">
                                               <Link href={`/products/${product?.id}`}>
                                                 <p className="text-sm text-zinc-300 hover:text-pink-400 transition cursor-pointer font-medium">{product?.title}</p>
                                               </Link>
+                                              {item.variant_name && <p className="text-xs text-violet-400 font-medium">{item.variant_name}</p>}
                                               <p className="text-xs text-zinc-500">x{item.quantity}</p>
                                             </div>
                                           </div>
@@ -1030,6 +1067,7 @@ export default function AdminDashboard() {
                                 <p className="text-2xl font-bold text-emerald-400">{order.total_price.toFixed(2)} ₺</p>
                               </div>
                               <button onClick={() => handleApproveOrder(order.id)} className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition">✅ Siparişi Onayla</button>
+                              <button onClick={() => handleCancelOrder(order.id)} className="px-5 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/40 hover:border-red-500 text-red-400 text-sm font-bold rounded-xl transition">🚫 İptal Et</button>
                             </div>
                           </div>
                         </div>
@@ -1065,6 +1103,7 @@ export default function AdminDashboard() {
                                 <p className="text-sm font-semibold text-zinc-300">Müşteri Detayları:</p>
                                 <p className="text-sm text-zinc-400">📞 {order.customer_phone}</p>
                                 {order.customer_email && <p className="text-sm text-zinc-400">📧 {order.customer_email}</p>}
+                                {order.customer_address && <p className="text-sm text-zinc-400">🏠 {order.customer_address}</p>}
                                 <p className="text-sm text-zinc-400">🆔 User ID: <span className="font-mono">{order.user_id?.slice(0, 8)}...</span></p>
                                 <p className="text-sm text-zinc-400">📅 {new Date(order.created_at).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                               </div>
@@ -1079,22 +1118,23 @@ export default function AdminDashboard() {
                                       return (
                                         <li key={idx} className="text-xs text-zinc-400 flex items-center justify-between gap-3 pb-3 border-b border-zinc-800 last:border-0">
                                           <div className="flex items-center gap-3 flex-1">
-                                            {/* Ürün Resmi */}
-                                            {product?.image_url ? (
-                                              <Link href={`/products/${product.id}`}>
+                                            {/* Ürün Resmi (varyant resmi varsa onu göster) */}
+                                            {(item.variant_image_url || product?.image_url) ? (
+                                              <Link href={`/products/${product?.id}`}>
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img src={product.image_url} alt={product.title} className="w-12 h-12 rounded-lg object-cover hover:opacity-80 transition cursor-pointer" />
+                                                <img src={item.variant_image_url || product?.image_url || ''} alt={product?.title || ''} className="w-12 h-12 rounded-lg object-cover hover:opacity-80 transition cursor-pointer" />
                                               </Link>
                                             ) : (
                                               <Link href={`/products/${product?.id}`}>
                                                 <div className="w-12 h-12 rounded-lg bg-zinc-800 flex items-center justify-center text-lg hover:opacity-80 transition cursor-pointer">🖼️</div>
                                               </Link>
                                             )}
-                                            {/* Ürün Bilgisi */}
+                                            {/* Ürün Bilgisi + Varyant Adı */}
                                             <div className="flex-1">
                                               <Link href={`/products/${product?.id}`}>
                                                 <p className="text-sm text-zinc-300 hover:text-pink-400 transition cursor-pointer font-medium">{product?.title}</p>
                                               </Link>
+                                              {item.variant_name && <p className="text-xs text-violet-400 font-medium">{item.variant_name}</p>}
                                               <p className="text-xs text-zinc-500">x{item.quantity}</p>
                                             </div>
                                           </div>
@@ -1137,11 +1177,52 @@ export default function AdminDashboard() {
                               <div className="text-xs text-center text-zinc-500">
                                 <p>Sipariş #{order.id}</p>
                               </div>
+                              <button onClick={() => handleCancelOrder(order.id)} className="px-5 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/40 hover:border-red-500 text-red-400 text-sm font-bold rounded-xl transition">🚫 Siparişi İptal Et</button>
                             </div>
                           </div>
                         </div>
                       )
                     })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── TAB: İPTAL TALEPLERİ ── */}
+            {activeTab === 'cancel-requests' && (
+              <div>
+                <h2 className="text-2xl font-bold mb-6">🔴 İptal Talepleri</h2>
+                {cancelRequestedOrders.length === 0 ? (
+                  <div className="text-center py-16"><p className="text-4xl mb-3">✅</p><p className="text-zinc-400">Bekleyen iptal talebi yok</p></div>
+                ) : (
+                  <div className="space-y-4">
+                    {cancelRequestedOrders.map((order) => (
+                      <div key={order.id} className="bg-zinc-900 border-2 border-orange-500/30 hover:border-orange-500 rounded-xl p-6 transition">
+                        <div className="flex flex-col md:flex-row justify-between gap-6">
+                          <div className="space-y-3 flex-1">
+                            <div className="flex items-center gap-3">
+                              <h3 className="text-lg font-bold text-white">{order.customer_name}</h3>
+                              <span className="text-xs bg-orange-500/10 text-orange-400 px-2 py-1 rounded border border-orange-500/20">⏳ İPTAL TALEBİ</span>
+                            </div>
+                            <div className="bg-zinc-950 rounded-lg p-4 space-y-2">
+                              <p className="text-sm text-zinc-400">📞 {order.customer_phone}</p>
+                              {order.customer_email && <p className="text-sm text-zinc-400">📧 {order.customer_email}</p>}
+                              <p className="text-sm text-zinc-400">📅 {new Date(order.created_at).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                            </div>
+                          </div>
+                          <div className="flex flex-col justify-between md:items-end gap-3">
+                            <div className="text-right">
+                              <p className="text-xs text-zinc-400">Toplam Tutar</p>
+                              <p className="text-2xl font-bold text-orange-400">{order.total_price.toFixed(2)} ₺</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <button onClick={() => handleApproveCancelRequest(order.id)} className="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition">🚫 İptali Onayla</button>
+                              <button onClick={() => handleRejectCancelRequest(order.id)} className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition">✅ Talebi Reddet</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

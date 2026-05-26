@@ -138,7 +138,8 @@ export interface Order {
   customer_name: string
   customer_phone: string
   customer_email?: string | null
-  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  customer_address?: string | null
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'CANCEL_REQUESTED'
   total_price: number
   applied_coupon?: string | null
   tracking_code?: string | null
@@ -154,6 +155,8 @@ export interface OrderItem {
   quantity: number
   price: number
   selected_variants: Record<string, string | null>
+  variant_image_url?: string | null
+  variant_name?: string | null
   created_at: string
 }
 

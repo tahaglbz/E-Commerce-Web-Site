@@ -258,6 +258,7 @@ export default function CheckoutPage() {
           customer_name: `${firstName} ${lastName}`.trim(),
           customer_phone: phone,
           customer_email: userEmail,
+          customer_address: `${address.trim()}${city ? ', ' + city.trim() : ''}${district ? ' / ' + district.trim() : ''}`,
           status: 'PENDING',
           total_price: total,
         })
@@ -271,6 +272,10 @@ export default function CheckoutPage() {
         const p = item.product!
         const base = p.is_discount_active && p.discount_price ? p.discount_price : p.price
         const additional = item.variant?.additional_price ?? 0
+        // Varyant bilgilerini oluştur
+        const variantParts: string[] = []
+        if (item.variant?.color) variantParts.push(item.variant.color)
+        if (item.variant?.size_or_dimension) variantParts.push(item.variant.size_or_dimension)
         return {
           order_id: order.id,
           product_id: item.product_id,
@@ -281,6 +286,8 @@ export default function CheckoutPage() {
             color: item.variant?.color ?? null,
             size_or_dimension: item.variant?.size_or_dimension ?? null,
           },
+          variant_image_url: item.variant?.color_image_url ?? null,
+          variant_name: variantParts.length > 0 ? variantParts.join(' / ') : null,
         }
       })
 
