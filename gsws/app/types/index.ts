@@ -141,6 +141,7 @@ export interface Order {
   customer_address?: string | null
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'CANCEL_REQUESTED'
   total_price: number
+  shipping_price?: number | null
   applied_coupon?: string | null
   tracking_code?: string | null
   created_at: string

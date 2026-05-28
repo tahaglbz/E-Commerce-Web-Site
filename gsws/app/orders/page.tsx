@@ -78,15 +78,18 @@ function OrderCard({ order, items }: { order: Order; items: RichOrderItem[] }) {
           <div className="space-y-3">
             {items.map((item) => {
               const p = item.product
-              const base = p ? (p.is_discount_active && p.discount_price ? p.discount_price : p.price) : 0
-              const additional = item.variant?.additional_price ?? 0
+              // Resim önceliği: order_items.variant_image_url → variant.color_image_url → product.image_url
+              const imgUrl = item.variant_image_url
+                ?? item.variant?.color_image_url
+                ?? p?.image_url
+                ?? null
               return (
                 <div key={item.id} className="flex gap-3 items-center">
-                  {p?.image_url ? (
+                  {imgUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={item.variant?.color_image_url ?? p.image_url}
-                      alt={p.title}
+                      src={imgUrl}
+                      alt={p?.title || 'Ürün'}
                       className="w-14 h-14 rounded-xl object-cover flex-shrink-0 border border-zinc-800"
                     />
                   ) : (
@@ -96,6 +99,9 @@ function OrderCard({ order, items }: { order: Order; items: RichOrderItem[] }) {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-white line-clamp-1">{p?.title ?? 'Ürün'}</p>
+                    {item.variant_name && (
+                      <p className="text-xs text-violet-400 font-medium mt-0.5">{item.variant_name}</p>
+                    )}
                     <div className="flex gap-1 flex-wrap mt-1">
                       {item.variant?.color && (
                         <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded">{item.variant.color}</span>
@@ -106,8 +112,9 @@ function OrderCard({ order, items }: { order: Order; items: RichOrderItem[] }) {
                       <span className="text-xs text-zinc-600">x{item.quantity}</span>
                     </div>
                   </div>
+                  {/* order_items.price = satın alma anındaki (birim_fiyat × adet) */}
                   <p className="text-sm font-bold text-white flex-shrink-0">
-                    {((base + additional) * item.quantity).toFixed(2)} ₺
+                    {item.price.toFixed(2)} ₺
                   </p>
                 </div>
               )

@@ -104,11 +104,11 @@ function CartItemCard({ item, onUpdateQuantity, onRemove }: CartItemCardProps) {
   return (
     <div className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-5 transition duration-200">
       <div className="flex gap-4">
-        {/* Görsel */}
+        {/* Görsel – Varyant resmi varsa onu göster */}
         <div className="w-24 h-24 bg-zinc-950 rounded-xl flex-shrink-0 overflow-hidden border border-zinc-800">
-          {product.image_url ? (
+          {(variant?.color_image_url || product.image_url) ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={product.image_url} alt={product.title} className="w-full h-full object-cover" />
+            <img src={variant?.color_image_url ?? product.image_url!} alt={product.title} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-2xl">🖼️</div>
           )}
@@ -401,7 +401,12 @@ export default function CartPage() {
       ? (subtotal * appliedCoupon.discount_value) / 100
       : appliedCoupon.discount_value
   }
-  const total = Math.max(0, subtotal - discount)
+  const afterDiscount = Math.max(0, subtotal - discount)
+  // ── Kargo Baremi: 1500 TL üzeri ücretsiz, altı 150 TL ──
+  const FREE_SHIPPING_THRESHOLD = 1500
+  const SHIPPING_FEE = 150
+  const shippingCost = afterDiscount >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE
+  const total = afterDiscount + shippingCost
 
   // ── Ödeme Aşamasına Geç (yeni akış: /checkout sayfasına yönlendir) ──
   async function handleProceedToCheckout() {
@@ -576,6 +581,22 @@ export default function CartPage() {
                     <div className="flex justify-between text-sm text-emerald-400">
                       <span>İndirim ({appliedCoupon.discount_type === 'PERCENTAGE' ? `${appliedCoupon.discount_value}%` : 'Sabit'})</span>
                       <span className="font-semibold">−{discount.toFixed(2)} ₺</span>
+                    </div>
+                  )}
+                  {/* Kargo Ücreti */}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-zinc-400 flex items-center gap-1.5">🚚 Kargo</span>
+                    {shippingCost === 0 ? (
+                      <span className="font-semibold text-emerald-400">Ücretsiz 🎉</span>
+                    ) : (
+                      <span className="font-semibold text-orange-400">+{shippingCost.toFixed(2)} ₺</span>
+                    )}
+                  </div>
+                  {shippingCost > 0 && (
+                    <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-3 py-2">
+                      <p className="text-xs text-emerald-400">
+                        🎉 <span className="font-bold">{(FREE_SHIPPING_THRESHOLD - afterDiscount).toFixed(2)} ₺</span> daha ekleyin, kargo bedava!
+                      </p>
                     </div>
                   )}
                   <div className="flex justify-between text-xl font-bold pt-3 border-t border-zinc-800">

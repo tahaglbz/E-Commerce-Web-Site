@@ -232,8 +232,12 @@ export default function CheckoutPage() {
     const additional = item.variant?.additional_price ?? 0
     return total + (base + additional) * item.quantity
   }, 0)
-  const shipping = subtotal > 0 ? 0 : 0 // Ücretsiz kargo
-  const total = Math.max(0, subtotal - couponDiscount + shipping)
+  const afterDiscount = Math.max(0, subtotal - couponDiscount)
+  // ── Kargo Baremi: 1500 TL üzeri ücretsiz, altında 150 TL ──
+  const FREE_SHIPPING_THRESHOLD = 1500
+  const SHIPPING_FEE = 150
+  const shippingCost = afterDiscount >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE
+  const total = afterDiscount + shippingCost
 
   // ── Sipariş Oluştur ───────────────────────────────────────────────
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -261,6 +265,7 @@ export default function CheckoutPage() {
           customer_address: `${address.trim()}${city ? ', ' + city.trim() : ''}${district ? ' / ' + district.trim() : ''}`,
           status: 'PENDING',
           total_price: total,
+          shipping_price: shippingCost,
         })
         .select('id')
         .single()
@@ -563,10 +568,22 @@ export default function CheckoutPage() {
                       <span>Ara Toplam</span>
                       <span>{subtotal.toFixed(2)} ₺</span>
                     </div>
-                    <div className="flex justify-between text-sm text-emerald-400">
-                      <span>Kargo</span>
-                      <span>Ücretsiz 🎉</span>
+                    {/* Kargo Ücreti */}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-400 flex items-center gap-1.5">🚚 Kargo</span>
+                      {shippingCost === 0 ? (
+                        <span className="font-semibold text-emerald-400">Ücretsiz 🎉</span>
+                      ) : (
+                        <span className="font-semibold text-orange-400">+{shippingCost.toFixed(2)} ₺</span>
+                      )}
                     </div>
+                    {shippingCost > 0 && (
+                      <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-3 py-2">
+                        <p className="text-xs text-emerald-400">
+                          🎉 <span className="font-bold">{(FREE_SHIPPING_THRESHOLD - afterDiscount).toFixed(2)} ₺</span> daha ekleyin, kargo bedava!
+                        </p>
+                      </div>
+                    )}
                     {couponDiscount > 0 && (
                       <div className="flex justify-between text-sm text-pink-400">
                         <span>İndirim</span>
