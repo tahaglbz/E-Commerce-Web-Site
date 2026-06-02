@@ -126,16 +126,16 @@ export async function POST(request: NextRequest) {
     });
 
     // Resend'e gönder
-    const response = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'noreply@tcgiftshop.com',
-      to: userEmail!,
+    const { data, error } = await resend.emails.send({
+      from: 'onboarding@resend.dev', // Sandbox test adresi
+      to: 'tahaglbz1@gmail.com', // Sandbox - sadece hesabı açan maile
       subject: '🛒 Sepetinizde Ürün Unuttunuz! Tamamlamak İçin Geri Dönün',
       html: emailHtml,
     });
 
     // Response kontrolü
-    if (!response || !('id' in response)) {
-      throw new Error('Email API hatası: Yanıt ID bulunamadı');
+    if (error || !data?.id) {
+      throw new Error(error?.message || 'Email API hatası: Yanıt ID bulunamadı');
     }
 
     // Veritabanında cart items'ın abandonment_mail_sent bayrağını TRUE'ya set et
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         message: 'Sepet hatırlatma maili başarıyla gönderildi!',
-        messageId: response.id,
+        messageId: data.id,
         itemCount: cartItemsWithDetails.length,
         totalValue,
       },

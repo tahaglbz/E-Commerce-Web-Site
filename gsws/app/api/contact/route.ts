@@ -41,20 +41,25 @@ export async function POST(request: NextRequest) {
     });
 
     // Resend'e gönder
-    const response = await resend.emails.send({
-      from: body.senderEmail, // Gönderen e-posta (formdan gelen)
-      to: process.env.CONTACT_EMAIL || 'tahaglbz1@gmail.com', // Admin mailbox
+    const { data, error } = await resend.emails.send({
+      from: 'onboarding@resend.dev', // Sandbox test adresi
+      to: 'tahaglbz1@gmail.com', // Sandbox - sadece hesabı açan maile
       replyTo: body.senderEmail, // Yanıt adresi olarak gönderenin maili
       subject: `[İletişim Formu] ${body.subject}`,
       html: emailHtml,
     });
+
+    // Response kontrolü
+    if (error || !data?.id) {
+      throw new Error(error?.message || 'Email API hatası: Yanıt ID bulunamadı');
+    }
 
     // Başarılı yanıt
     return NextResponse.json(
       {
         success: true,
         message: 'Mesajınız başarıyla gönderildi!',
-        messageId: response.id,
+        messageId: data.id,
       },
       { status: 200 }
     );
