@@ -295,12 +295,34 @@ function OrderCard({
       {/* Genişletilmiş Detay */}
       {expanded && (
         <div className="border-t border-zinc-800 animate-expandIn">
-          {/* Müşteri Bilgileri */}
+          {/* Müşteri & Teslimat Bilgileri */}
           <div className="px-5 pt-4 pb-2">
-            <div className="flex items-center gap-4 text-sm text-zinc-400 flex-wrap">
-              <span>👤 <span className="text-zinc-200 font-medium">{order.customer_name}</span></span>
-              {order.customer_phone && <span>📞 {order.customer_phone}</span>}
-              {order.customer_email && <span>📧 {order.customer_email}</span>}
+            <div className="bg-zinc-950/60 rounded-xl border border-zinc-800/50 p-4 space-y-2">
+              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">Sipariş Bilgileri</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-zinc-500">👤</span>
+                  <span className="text-zinc-300 font-medium">{order.customer_name}</span>
+                </div>
+                {order.customer_phone && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-zinc-500">📞</span>
+                    <span className="text-zinc-300">{order.customer_phone}</span>
+                  </div>
+                )}
+                {order.customer_email && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-zinc-500">📧</span>
+                    <span className="text-zinc-300">{order.customer_email}</span>
+                  </div>
+                )}
+              </div>
+              {order.customer_address && (
+                <div className="flex items-start gap-2 text-sm pt-1 border-t border-zinc-800/50 mt-2">
+                  <span className="text-zinc-500 mt-0.5">🏠</span>
+                  <span className="text-zinc-300 leading-relaxed">{order.customer_address}</span>
+                </div>
+              )}
             </div>
           </div>
 

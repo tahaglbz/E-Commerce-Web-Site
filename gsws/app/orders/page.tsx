@@ -66,14 +66,36 @@ function OrderCard({ order, items }: { order: Order; items: RichOrderItem[] }) {
       {/* Sipariş Detayları */}
       {expanded && (
         <div className="border-t border-zinc-800 p-5">
-          {order.customer_name && (
-            <p className="text-xs text-zinc-500 mb-4">
-              Alıcı: <span className="text-zinc-300 font-medium">{order.customer_name}</span>
-              {order.customer_phone && (
-                <> — <span className="text-zinc-300 font-medium">{order.customer_phone}</span></>
+          {/* Müşteri & Teslimat Bilgileri */}
+          <div className="bg-zinc-950/60 rounded-xl border border-zinc-800/50 p-4 mb-4">
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-3">Sipariş & Teslimat Bilgileri</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {order.customer_name && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-zinc-500">👤</span>
+                  <span className="text-zinc-300 font-medium">{order.customer_name}</span>
+                </div>
               )}
-            </p>
-          )}
+              {order.customer_phone && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-zinc-500">📞</span>
+                  <span className="text-zinc-300">{order.customer_phone}</span>
+                </div>
+              )}
+              {order.customer_email && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-zinc-500">📧</span>
+                  <span className="text-zinc-300">{order.customer_email}</span>
+                </div>
+              )}
+            </div>
+            {order.customer_address && (
+              <div className="flex items-start gap-2 text-sm pt-2 border-t border-zinc-800/50 mt-3">
+                <span className="text-zinc-500 mt-0.5">🏠</span>
+                <span className="text-zinc-300 leading-relaxed">{order.customer_address}</span>
+              </div>
+            )}
+          </div>
 
           <div className="space-y-3">
             {items.map((item) => {
