@@ -539,6 +539,7 @@ export default function AdminDashboard() {
   const [filterCategory, setFilterCategory] = useState('')
   const [trackingCodes, setTrackingCodes] = useState<Record<number, string>>({})
   const [savingTracking, setSavingTracking] = useState<Record<number, boolean>>({})
+  const [sendingReminder, setSendingReminder] = useState<Record<string, boolean>>({})
 
   // ── Kategori Tipi (seçili kategoriye göre) ───────────────────────
   const selectedCatName = categories.find((c) => c.id === parseInt(newProductCategory))?.name || ''
@@ -865,10 +866,29 @@ export default function AdminDashboard() {
 
   // ── Sipariş Onayla ────────────────────────────────────────────────
   async function handleApproveOrder(orderId: number) {
-    const { error } = await supabase.from('orders').update({ status: 'APPROVED' }).eq('id', orderId)
-    if (!error) {
-      setOrders(orders.map((o) => o.id === orderId ? { ...o, status: 'APPROVED' } : o))
-      alert('✅ Sipariş onaylandı!')
+    try {
+      const { error } = await supabase.from('orders').update({ status: 'APPROVED' }).eq('id', orderId)
+      
+      if (!error) {
+        setOrders(orders.map((o) => o.id === orderId ? { ...o, status: 'APPROVED' } : o))
+        
+        // Sipariş onaylandı bildirimi mailini gönder
+        try {
+          await fetch('/api/order/notify-approved', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId }),
+          })
+        } catch (emailError) {
+          console.warn('Mail gönderme hatası (onay)', emailError)
+        }
+        
+        alert('✅ Sipariş onaylandı!')
+      } else {
+        alert(`❌ Hata: ${error.message}`)
+      }
+    } catch (err) {
+      alert(`❌ Hata: ${err instanceof Error ? err.message : 'Bilinmeyen hata'}`)
     }
   }
 
@@ -895,10 +915,56 @@ export default function AdminDashboard() {
   // ── Siparişi İptal Et (Admin Gücü) ────────────────────────────────
   async function handleCancelOrder(orderId: number) {
     if (!confirm('Bu siparişi tamamen iptal etmek istediğinize emin misiniz?')) return
-    const { error } = await supabase.from('orders').update({ status: 'CANCELLED' }).eq('id', orderId)
-    if (!error) {
-      setOrders(orders.map((o) => o.id === orderId ? { ...o, status: 'CANCELLED' as const } : o))
-      alert('🚫 Sipariş iptal edildi!')
+    
+    try {
+      const { error } = await supabase.from('orders').update({ status: 'CANCELLED' }).eq('id', orderId)
+      
+      if (!error) {
+        setOrders(orders.map((o) => o.id === orderId ? { ...o, status: 'CANCELLED' as const } : o))
+        
+        // Sipariş iptal bildirimi mailini gönder
+        try {
+          await fetch('/api/order/notify-cancellation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId }),
+          })
+        } catch (emailError) {
+          console.warn('Mail gönderme hatası (iptal)', emailError)
+        }
+        
+        alert('🚫 Sipariş iptal edildi!')
+      } else {
+        alert(`❌ İptal işleminde hata: ${error.message}`)
+      }
+    } catch (err) {
+      alert(`❌ Hata: ${err instanceof Error ? err.message : 'Bilinmeyen hata'}`)
+    }
+  }
+
+  // ── Sepet Hatırlatma Maili Gönder ────────────────────────────────
+  async function handleSendCartReminder(userId: string) {
+    setSendingReminder((prev) => ({ ...prev, [userId]: true }))
+    try {
+      const response = await fetch('/api/remind-cart', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        alert(`✅ Sepet hatırlatma maili başarıyla gönderildi! (${data.itemCount} ürün)`)
+      } else {
+        alert(`❌ Hata: ${data.error || 'Mail gönderilemedi'}`)
+      }
+    } catch (error) {
+      alert(`❌ Hata: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`)
+    } finally {
+      setSendingReminder((prev) => ({ ...prev, [userId]: false }))
     }
   }
 
@@ -1259,9 +1325,25 @@ export default function AdminDashboard() {
                               ))}
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-xs text-zinc-400 mb-1">Sepet Toplam</p>
-                            <p className="text-3xl font-bold text-orange-400">{cart.totalValue.toFixed(2)} ₺</p>
+                          <div className="flex flex-col items-end gap-3">
+                            <div className="text-right">
+                              <p className="text-xs text-zinc-400 mb-1">Sepet Toplam</p>
+                              <p className="text-3xl font-bold text-orange-400">{cart.totalValue.toFixed(2)} ₺</p>
+                            </div>
+                            <button
+                              onClick={() => handleSendCartReminder(cart.userId)}
+                              disabled={sendingReminder[cart.userId]}
+                              className="px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 hover:opacity-90 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition flex items-center gap-2 whitespace-nowrap"
+                            >
+                              {sendingReminder[cart.userId] ? (
+                                <>
+                                  <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                                  Gönderiliyor...
+                                </>
+                              ) : (
+                                <>✉️ Hatırlatma Maili</>
+                              )}
+                            </button>
                           </div>
                         </div>
                       </div>

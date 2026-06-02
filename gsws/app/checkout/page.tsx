@@ -303,7 +303,18 @@ export default function CheckoutPage() {
       await supabase.from('cart_items').delete().eq('user_id', userId)
       clearLocalCart()
 
-      // ── 4) Başarı modalı ──────────────────────────────────────────
+      // ── 4) Sipariş alındı bildirimi mailini gönder ────────────────
+      try {
+        await fetch('/api/order/notify-placed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: order.id }),
+        })
+      } catch (emailError) {
+        console.warn('Mail gönderme hatası (placed)', emailError)
+      }
+
+      // ── 5) Başarı modalı ──────────────────────────────────────────
       setSuccessOrderId(order.id)
 
     } catch (err) {

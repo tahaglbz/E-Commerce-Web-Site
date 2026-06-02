@@ -1,8 +1,63 @@
 'use client'
 
+import { useState } from 'react'
 import Navbar from '@/app/components/Navbar'
 
 export default function ContactPage() {
+  const [formData, setFormData] = useState({
+    senderName: '',
+    senderEmail: '',
+    subject: 'Genel Soru',
+    message: '',
+  })
+
+  const [isLoading, setIsLoading] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setSuccessMessage('')
+    setErrorMessage('')
+
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setSuccessMessage('✅ Mesajınız başarıyla gönderildi! Size en kısa sürede dönüş yapacağız.')
+        setFormData({
+          senderName: '',
+          senderEmail: '',
+          subject: 'Genel Soru',
+          message: '',
+        })
+      } else {
+        setErrorMessage(`❌ Hata: ${data.error || 'Mesaj gönderilemedi. Lütfen tekrar deneyin.'}`)
+      }
+    } catch (error) {
+      setErrorMessage(`❌ Sunucu hatası: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-950 to-black text-zinc-100">
       <Navbar />
@@ -106,34 +161,64 @@ export default function ContactPage() {
             <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
               <span>✉️</span> Mesaj Gönderin
             </h2>
-            <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); alert('📨 Mesajınız başarıyla gönderildi! (Demo)') }}>
+
+            {/* Durum Mesajları */}
+            {successMessage && (
+              <div className="mb-4 p-3 bg-emerald-500/20 border border-emerald-500/40 rounded-lg text-emerald-300 text-sm">
+                {successMessage}
+              </div>
+            )}
+
+            {errorMessage && (
+              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/40 rounded-lg text-red-300 text-sm">
+                {errorMessage}
+              </div>
+            )}
+
+            <form className="space-y-5" onSubmit={handleSubmit}>
               <div>
                 <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-1.5">
                   Ad Soyad <span className="text-pink-500">*</span>
                 </label>
                 <input
                   type="text"
+                  name="senderName"
                   required
                   placeholder="Adınız Soyadınız"
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500/30 transition"
+                  value={formData.senderName}
+                  onChange={handleInputChange}
+                  disabled={isLoading}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500/30 transition disabled:opacity-50"
                 />
               </div>
+
               <div>
                 <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-1.5">
                   E-posta <span className="text-pink-500">*</span>
                 </label>
                 <input
                   type="email"
+                  name="senderEmail"
                   required
                   placeholder="ornek@mail.com"
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500/30 transition"
+                  value={formData.senderEmail}
+                  onChange={handleInputChange}
+                  disabled={isLoading}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500/30 transition disabled:opacity-50"
                 />
               </div>
+
               <div>
                 <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-1.5">
                   Konu
                 </label>
-                <select className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-pink-500 transition">
+                <select
+                  name="subject"
+                  value={formData.subject}
+                  onChange={handleInputChange}
+                  disabled={isLoading}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-pink-500 transition disabled:opacity-50"
+                >
                   <option>Genel Soru</option>
                   <option>Sipariş Hakkında</option>
                   <option>İade / Değişim</option>
@@ -141,22 +226,29 @@ export default function ContactPage() {
                   <option>Diğer</option>
                 </select>
               </div>
+
               <div>
                 <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-1.5">
                   Mesajınız <span className="text-pink-500">*</span>
                 </label>
                 <textarea
+                  name="message"
                   required
                   rows={5}
                   placeholder="Mesajınızı buraya yazın..."
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500/30 transition resize-none"
+                  value={formData.message}
+                  onChange={handleInputChange}
+                  disabled={isLoading}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500/30 transition resize-none disabled:opacity-50"
                 />
               </div>
+
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-pink-500 to-violet-600 hover:from-pink-400 hover:to-violet-500 text-white font-bold py-3.5 rounded-xl transition-all duration-200 shadow-lg shadow-pink-500/15 hover:shadow-pink-500/30 hover:scale-[1.01] active:scale-[0.99]"
+                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-pink-500 to-violet-600 hover:from-pink-400 hover:to-violet-500 text-white font-bold py-3.5 rounded-xl transition-all duration-200 shadow-lg shadow-pink-500/15 hover:shadow-pink-500/30 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                📨 Mesajı Gönder
+                {isLoading ? '⏳ Gönderiliyor...' : '📨 Mesajı Gönder'}
               </button>
             </form>
           </div>
