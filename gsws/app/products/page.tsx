@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/app/utils/supabase/client'
 import Link from 'next/link'
-import { Product, Category, ProductVariant } from '@/app/types'
+import { Product, Category, ProductVariant, SubCategory } from '@/app/types'
 
 // ── Renk Kodu Haritası (varyant rengine göre CSS rengi) ──────────
 const COLOR_MAP: Record<string, string> = {
@@ -22,7 +23,6 @@ function getColorHex(colorName: string): string | null {
 
 // ── Varyant Renk Gösterimi (Kartın altında) ──────────────────────
 function VariantSwatches({ variants }: { variants: ProductVariant[] }) {
-  // Sadece benzersiz renkleri al (color_image_url varsa onu kullan)
   const uniqueColors = variants.reduce<Array<{ color: string; imageUrl: string | null }>>((acc, v) => {
     if (v.color && !acc.find(c => c.color === v.color)) {
       acc.push({ color: v.color, imageUrl: v.color_image_url })
@@ -40,8 +40,6 @@ function VariantSwatches({ variants }: { variants: ProductVariant[] }) {
       {uniqueColors.slice(0, maxShow).map((c) => {
         const hex = getColorHex(c.color)
         return c.imageUrl ? (
-          // Varyant resim thumbnail
-          // eslint-disable-next-line @next/next/no-img-element
           <img
             key={c.color}
             src={c.imageUrl}
@@ -50,7 +48,6 @@ function VariantSwatches({ variants }: { variants: ProductVariant[] }) {
             className="w-6 h-6 rounded-full object-cover border-2 border-zinc-700 hover:border-pink-500 transition cursor-pointer"
           />
         ) : hex ? (
-          // Renk çemberi
           <div
             key={c.color}
             title={c.color}
@@ -58,7 +55,6 @@ function VariantSwatches({ variants }: { variants: ProductVariant[] }) {
             style={{ backgroundColor: hex }}
           />
         ) : (
-          // Fallback: renk adı badge
           <span
             key={c.color}
             title={c.color}
@@ -75,31 +71,43 @@ function VariantSwatches({ variants }: { variants: ProductVariant[] }) {
   )
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// ANA SAYFA
-// ═══════════════════════════════════════════════════════════════════
 export default function ProductsPage() {
   const supabase = createClient()
+  const searchParams = useSearchParams()
+  
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [subCategories, setSubCategories] = useState<SubCategory[]>([])
   const [variants, setVariants] = useState<ProductVariant[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
+  const [selectedSubCategory, setSelectedSubCategory] = useState<number | null>(null)
+  const [priceFilter, setPriceFilter] = useState<{ min: number; max: number } | null>(null)
 
-  // Ürünleri, kategorileri ve varyantları yükle
+  // URL'den category parametresini al
+  useEffect(() => {
+    const categoryParam = searchParams.get('category')
+    if (categoryParam) {
+      setSelectedCategory(parseInt(categoryParam))
+    }
+  }, [searchParams])
+
+  // Veri yükle
   useEffect(() => {
     async function loadData() {
       setLoading(true)
       try {
-        const [{ data: productsData }, { data: categoriesData }, { data: variantsData }] = await Promise.all([
+        const [{ data: productsData }, { data: categoriesData }, { data: subcategoriesData }, { data: variantsData }] = await Promise.all([
           supabase.from('products').select('*').order('created_at', { ascending: false }),
           supabase.from('categories').select('*').order('name', { ascending: true }),
+          supabase.from('sub_categories').select('*').order('name', { ascending: true }),
           supabase.from('product_variants').select('*'),
         ])
 
         if (productsData) setProducts(productsData as Product[])
         if (categoriesData) setCategories(categoriesData as Category[])
+        if (subcategoriesData) setSubCategories(subcategoriesData as SubCategory[])
         if (variantsData) setVariants(variantsData as ProductVariant[])
       } catch (err) {
         console.error('Veri yükleme hatası:', err)
@@ -109,22 +117,44 @@ export default function ProductsPage() {
     }
 
     loadData()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Seçili kategoriye ait alt kategorileri getir
+  const filteredSubCategories = selectedCategory
+    ? subCategories.filter(sc => sc.category_id === selectedCategory)
+    : []
 
   // Filtreleme mantığı
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.title.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = selectedCategory === null || product.category_id === selectedCategory
-    return matchesSearch && matchesCategory
+    const matchesSubCategory = selectedSubCategory === null || product.sub_category_id === selectedSubCategory
+    const matchesPrice = !priceFilter || (product.price >= priceFilter.min && product.price <= priceFilter.max)
+    return matchesSearch && matchesCategory && matchesSubCategory && matchesPrice
   })
+
+  const selectedCategoryName = categories.find(c => c.id === selectedCategory)?.name
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-950 to-black text-zinc-100">
+      {/* Breadcrumb Navigation */}
+      {selectedCategory && (
+        <div className="bg-zinc-900/30 border-b border-zinc-800">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-2 text-sm">
+            <Link href="/products" className="text-zinc-400 hover:text-white transition">
+              📂 Tüm Kategoriler
+            </Link>
+            <span className="text-zinc-600">/</span>
+            <span className="text-pink-400 font-semibold">{selectedCategoryName}</span>
+          </div>
+        </div>
+      )}
 
       {/* Search & Filter Bar */}
-      <div className="bg-zinc-900/50 border-b border-zinc-800">
+      <div className="bg-zinc-900/50 border-b border-zinc-800 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-5">
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col gap-4">
+            {/* Search Input */}
             <div className="relative flex-1">
               <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -137,30 +167,75 @@ export default function ProductsPage() {
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-pink-500 transition"
               />
             </div>
-            <select
-              value={selectedCategory || ''}
-              onChange={(e) => setSelectedCategory(e.target.value ? parseInt(e.target.value) : null)}
-              className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-pink-500 transition"
-            >
-              <option value="">Tüm Kategoriler</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
+
+            {/* Filter Selects */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Kategori */}
+              <select
+                value={selectedCategory || ''}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value ? parseInt(e.target.value) : null)
+                  setSelectedSubCategory(null)
+                }}
+                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-pink-500 transition"
+              >
+                <option value="">Tüm Kategoriler</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+
+              {/* Alt Kategori */}
+              {filteredSubCategories.length > 0 && (
+                <select
+                  value={selectedSubCategory || ''}
+                  onChange={(e) => setSelectedSubCategory(e.target.value ? parseInt(e.target.value) : null)}
+                  className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-pink-500 transition"
+                >
+                  <option value="">Tüm Alt Kategoriler</option>
+                  {filteredSubCategories.map((subcat) => (
+                    <option key={subcat.id} value={subcat.id}>
+                      {subcat.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {/* Temizle Butonu */}
+              {(selectedCategory || selectedSubCategory || searchTerm) && (
+                <button
+                  onClick={() => {
+                    setSelectedCategory(null)
+                    setSelectedSubCategory(null)
+                    setSearchTerm('')
+                  }}
+                  className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition"
+                >
+                  ✕ Temizle
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Products Grid */}
       <main className="max-w-7xl mx-auto px-4 py-10">
-        {/* Sonuç sayısı */}
+        {/* Sonuç sayısı ve breadcrumb */}
         {!loading && (
           <div className="flex items-center justify-between mb-6">
-            <p className="text-sm text-zinc-500">
-              <span className="text-zinc-300 font-semibold">{filteredProducts.length}</span> ürün listeleniyor
-            </p>
+            <div>
+              <p className="text-sm text-zinc-500">
+                <span className="text-zinc-300 font-semibold">{filteredProducts.length}</span> ürün listeleniyor
+              </p>
+              {selectedSubCategory && (
+                <p className="text-xs text-zinc-400 mt-1">
+                  Alt Kategori: <span className="text-pink-400">{subCategories.find(s => s.id === selectedSubCategory)?.name}</span>
+                </p>
+              )}
+            </div>
           </div>
         )}
 
@@ -173,6 +248,12 @@ export default function ProductsPage() {
           <div className="text-center py-24">
             <p className="text-5xl mb-4">🔍</p>
             <p className="text-zinc-400 text-lg">Aranan kriterlere uygun ürün bulunamadı.</p>
+            <Link
+              href="/products"
+              className="inline-block mt-6 px-6 py-2 bg-gradient-to-r from-pink-500 to-violet-600 text-white font-semibold rounded-lg hover:opacity-90 transition"
+            >
+              Tüm Ürünleri Gör
+            </Link>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
@@ -184,7 +265,6 @@ export default function ProductsPage() {
                     {/* Image Container */}
                     <div className="relative w-full aspect-square bg-zinc-950 overflow-hidden">
                       {product.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={product.image_url}
                           alt={product.title}
@@ -247,7 +327,7 @@ export default function ProductsPage() {
                         {categories.find((c) => c.id === product.category_id)?.name || 'Genel'}
                       </div>
 
-                      {/* ── Varyant Renk Çemberleri ── */}
+                      {/* Variant Swatches */}
                       {productVariants.length > 0 && (
                         <VariantSwatches variants={productVariants} />
                       )}

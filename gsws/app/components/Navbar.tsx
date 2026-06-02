@@ -1,18 +1,25 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/app/utils/supabase/client'
 import Link from 'next/link'
 import { getLocalCart } from '@/app/utils/cartUtils'
+import { Category, SubCategory } from '@/app/types'
 
 export default function Navbar() {
   const router = useRouter()
+  const pathname = usePathname()
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [cartCount, setCartCount] = useState(0)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [subCategories, setSubCategories] = useState<SubCategory[]>([])
+  const [isCategoriesOpen, setIsCategoriesOpen] = useState(false)
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
 
   useEffect(() => {
     async function checkUser() {
@@ -22,7 +29,6 @@ export default function Navbar() {
     }
     checkUser()
 
-    // Auth state değişikliklerini dinle
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user || null)
     })
@@ -32,13 +38,28 @@ export default function Navbar() {
     }
   }, [supabase])
 
-  // Profil avatarının baş harfi
+  // Kategorileri yükle
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const [{ data: catsData }, { data: subCatsData }] = await Promise.all([
+          supabase.from('categories').select('*').order('name', { ascending: true }),
+          supabase.from('sub_categories').select('*').order('name', { ascending: true }),
+        ])
+        if (catsData) setCategories(catsData as Category[])
+        if (subCatsData) setSubCategories(subCatsData as SubCategory[])
+      } catch (err) {
+        console.error('Kategoriler yüklenirken hata:', err)
+      }
+    }
+    loadCategories()
+  }, [])
+
   const getInitial = (email?: string) => {
     if (!email) return '?'
     return email.charAt(0).toUpperCase()
   }
 
-  // Dropdown'ı kapat (klik dışında)
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const dropdown = document.getElementById('profile-dropdown')
@@ -53,13 +74,10 @@ export default function Navbar() {
     }
   }, [isDropdownOpen])
 
-  // Sepet sayısını takip et (localStorage + Supabase)
   const updateCartCount = useCallback(async () => {
-    // Local cart her zaman oku
     const localItems = getLocalCart()
     const localCount = localItems.reduce((sum, item) => sum + item.quantity, 0)
 
-    // Giriş yapılmışsa DB'den de çek
     let dbCount = 0
     if (user) {
       const { data } = await supabase
@@ -84,7 +102,6 @@ export default function Navbar() {
     }
   }, [updateCartCount])
 
-  // ── Sepet Butonu Komponenti (tekrar kullanım) ──
   function CartButton() {
     return (
       <Link href="/cart" className="relative flex items-center justify-center w-10 h-10 rounded-lg hover:bg-zinc-800 transition group">
@@ -100,118 +117,145 @@ export default function Navbar() {
     )
   }
 
+  const filteredSubCategories = selectedCategoryId
+    ? subCategories.filter(sc => sc.category_id === selectedCategoryId)
+    : []
+
   return (
     <nav className="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-        {/* Logo */}
-        <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent hover:opacity-80 transition">
-          🎁 TC Gift Shop
-        </Link>
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        {/* Top Bar */}
+        <div className="flex justify-between items-center mb-3">
+          {/* Logo */}
+          <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent hover:opacity-80 transition">
+            🎁 TC Gift Shop
+          </Link>
 
-        {/* Orta Navigasyon Linkleri */}
-        <div className="hidden sm:flex items-center gap-1">
-          <Link href="/products" className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition">
-            🛍️ Ürünler
-          </Link>
-          <Link href="/contact" className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition">
-            📞 İletişim
-          </Link>
+          {/* Desktop Navigation */}
+          <div className="hidden sm:flex items-center gap-1">
+            <Link href="/products" className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition">
+              🛍️ Ürünler
+            </Link>
+            <Link href="/contact" className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition">
+              📞 İletişim
+            </Link>
+          </div>
+
+          {/* Right section */}
+          {loading ? (
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full border-2 border-pink-500 border-t-transparent animate-spin" />
+            </div>
+          ) : user ? (
+            <div className="flex items-center gap-2">
+              <CartButton />
+              <div id="profile-dropdown" className="relative">
+                <button
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-800 transition group"
+                >
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-violet-500 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-pink-500/20 group-hover:shadow-pink-500/40 transition">
+                    {getInitial(user.email)}
+                  </div>
+                  <div className="hidden sm:flex flex-col items-start">
+                    <span className="text-xs text-zinc-400">Hesabım</span>
+                    <span className="text-sm font-semibold text-white">{user.email?.split('@')[0]}</span>
+                  </div>
+                  <span className={`ml-1 transition duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}>▼</span>
+                </button>
+
+                {isDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-zinc-950 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="px-4 py-3 border-b border-zinc-800 bg-zinc-900">
+                      <p className="text-xs text-zinc-500 uppercase font-semibold">Giriş yapılan hesap</p>
+                      <p className="text-sm font-semibold text-white truncate">{user.email}</p>
+                    </div>
+
+                    <Link
+                      href="/profile"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="flex items-center gap-2 w-full px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition"
+                    >
+                      <span>👤</span> Profilim
+                    </Link>
+
+                    <Link
+                      href="/orders"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="flex items-center gap-2 w-full px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition border-t border-zinc-800"
+                    >
+                      <span>📦</span> Siparişlerim
+                    </Link>
+
+                    <Link
+                      href="/contact"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="flex items-center gap-2 w-full px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition border-t border-zinc-800"
+                    >
+                      <span>📞</span> İletişim
+                    </Link>
+
+                    <button
+                      onClick={async () => {
+                        await supabase.auth.signOut()
+                        setIsDropdownOpen(false)
+                        router.push('/')
+                      }}
+                      className="flex items-center gap-2 w-full px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition border-t border-zinc-800"
+                    >
+                      <span>🚪</span> Çıkış Yap
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-2 items-center">
+              <CartButton />
+              <Link
+                href="/auth/login"
+                className="px-4 py-2.5 text-sm font-semibold text-zinc-300 hover:text-white border border-zinc-700 hover:border-pink-500 rounded-lg transition"
+              >
+                🔐 Giriş Yap
+              </Link>
+              <Link
+                href="/auth/signup"
+                className="px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-pink-500 to-violet-600 hover:opacity-90 rounded-lg transition shadow-lg shadow-pink-500/20"
+              >
+                ✍️ Kayıt Ol
+              </Link>
+            </div>
+          )}
         </div>
 
-        {/* Right section */}
-        {loading ? (
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full border-2 border-pink-500 border-t-transparent animate-spin" />
-          </div>
-        ) : user ? (
-          // ── Giriş yapılmış: Sepet + Avatar + Dropdown ──
-          <div className="flex items-center gap-2">
-            <CartButton />
-            <div id="profile-dropdown" className="relative">
+        {/* Categories Bar */}
+        {pathname === '/products' && (
+          <div className="pt-3 border-t border-zinc-800">
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 -mb-2">
               <button
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-800 transition group"
+                onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
+                className="shrink-0 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition whitespace-nowrap flex items-center gap-1"
               >
-                {/* Avatar */}
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-violet-500 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-pink-500/20 group-hover:shadow-pink-500/40 transition">
-                  {getInitial(user.email)}
-                </div>
-                {/* Email (sadece desktop'ta) */}
-                <div className="hidden sm:flex flex-col items-start">
-                  <span className="text-xs text-zinc-400">Hesabım</span>
-                  <span className="text-sm font-semibold text-white">{user.email?.split('@')[0]}</span>
-                </div>
-                {/* Dropdown arrow */}
-                <span className={`ml-1 transition duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}>▼</span>
+                📂 Kategoriler {isCategoriesOpen ? '▲' : '▼'}
               </button>
-
-              {/* Dropdown Menu */}
-              {isDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-zinc-950 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                  {/* User Info */}
-                  <div className="px-4 py-3 border-b border-zinc-800 bg-zinc-900">
-                    <p className="text-xs text-zinc-500 uppercase font-semibold">Giriş yapılan hesap</p>
-                    <p className="text-sm font-semibold text-white truncate">{user.email}</p>
-                  </div>
-
-                  {/* Menu Items */}
-                  <Link
-                    href="/profile"
-                    onClick={() => setIsDropdownOpen(false)}
-                    className="flex items-center gap-2 w-full px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition"
-                  >
-                    <span>👤</span> Profilim
-                  </Link>
-
-                  <Link
-                    href="/orders"
-                    onClick={() => setIsDropdownOpen(false)}
-                    className="flex items-center gap-2 w-full px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition border-t border-zinc-800"
-                  >
-                    <span>📦</span> Siparişlerim
-                  </Link>
-
-                  <Link
-                    href="/contact"
-                    onClick={() => setIsDropdownOpen(false)}
-                    className="flex items-center gap-2 w-full px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition border-t border-zinc-800"
-                  >
-                    <span>📞</span> İletişim
-                  </Link>
-
-                  <button
-                    onClick={async () => {
-                      await supabase.auth.signOut()
-                      setIsDropdownOpen(false)
-                      router.push('/')
-                    }}
-                    className="flex items-center gap-2 w-full px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition border-t border-zinc-800"
-                  >
-                    <span>🚪</span> Çıkış Yap
-                  </button>
+              {isCategoriesOpen && (
+                <div className="flex items-center gap-2 ml-2">
+                  {categories.map(cat => (
+                    <Link
+                      key={cat.id}
+                      href={`/products?category=${cat.id}`}
+                      className="shrink-0 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-pink-400 bg-zinc-800/50 hover:bg-zinc-700 rounded-lg transition whitespace-nowrap"
+                    >
+                      {cat.name}
+                    </Link>
+                  ))}
                 </div>
               )}
             </div>
           </div>
-        ) : (
-          // ── Giriş yapılmamış: Sepet + Login/Signup ──
-          <div className="flex gap-2 items-center">
-            <CartButton />
-            <Link
-              href="/auth/login"
-              className="px-4 py-2.5 text-sm font-semibold text-zinc-300 hover:text-white border border-zinc-700 hover:border-pink-500 rounded-lg transition"
-            >
-              🔐 Giriş Yap
-            </Link>
-            <Link
-              href="/auth/signup"
-              className="px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-pink-500 to-violet-600 hover:opacity-90 rounded-lg transition shadow-lg shadow-pink-500/20"
-            >
-              ✍️ Kayıt Ol
-            </Link>
-          </div>
         )}
       </div>
+
       {/* Kargo Duyuru Bandı */}
       <div className="bg-gradient-to-r from-zinc-800 via-zinc-900 to-zinc-800 border-t border-zinc-800">
         <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-center gap-2">
