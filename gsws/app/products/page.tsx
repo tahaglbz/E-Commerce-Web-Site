@@ -84,6 +84,7 @@ export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
   const [selectedSubCategory, setSelectedSubCategory] = useState<number | null>(null)
   const [priceFilter, setPriceFilter] = useState<{ min: number; max: number } | null>(null)
+  const [sortOption, setSortOption] = useState('newest')
 
   // URL'den category parametresini al
   useEffect(() => {
@@ -125,13 +126,32 @@ export default function ProductsPage() {
     : []
 
   // Filtreleme mantığı
-  const filteredProducts = products.filter((product) => {
+  let filteredProducts = products.filter((product) => {
     const matchesSearch = product.title.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = selectedCategory === null || product.category_id === selectedCategory
     const matchesSubCategory = selectedSubCategory === null || product.sub_category_id === selectedSubCategory
     const matchesPrice = !priceFilter || (product.price >= priceFilter.min && product.price <= priceFilter.max)
     return matchesSearch && matchesCategory && matchesSubCategory && matchesPrice
   })
+
+  // Sıralama mantığı
+  if (sortOption === 'alphabetic-asc') {
+    filteredProducts = [...filteredProducts].sort((a, b) => a.title.localeCompare(b.title, 'tr'))
+  } else if (sortOption === 'alphabetic-desc') {
+    filteredProducts = [...filteredProducts].sort((a, b) => b.title.localeCompare(a.title, 'tr'))
+  } else if (sortOption === 'price-low') {
+    filteredProducts = [...filteredProducts].sort((a, b) => {
+      const priceA = a.is_discount_active && a.discount_price ? a.discount_price : a.price
+      const priceB = b.is_discount_active && b.discount_price ? b.discount_price : b.price
+      return priceA - priceB
+    })
+  } else if (sortOption === 'price-high') {
+    filteredProducts = [...filteredProducts].sort((a, b) => {
+      const priceA = a.is_discount_active && a.discount_price ? a.discount_price : a.price
+      const priceB = b.is_discount_active && b.discount_price ? b.discount_price : b.price
+      return priceB - priceA
+    })
+  }
 
   const selectedCategoryName = categories.find(c => c.id === selectedCategory)?.name
 
@@ -203,6 +223,19 @@ export default function ProductsPage() {
                 </select>
               )}
 
+              {/* Sıralama Seçeneği */}
+              <select
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value)}
+                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-pink-500 transition"
+              >
+                <option value="newest">Yeni Ürünler</option>
+                <option value="alphabetic-asc">Alfabetik (A-Z)</option>
+                <option value="alphabetic-desc">Alfabetik (Z-A)</option>
+                <option value="price-low">Fiyat (Düşük-Yüksek)</option>
+                <option value="price-high">Fiyat (Yüksek-Düşük)</option>
+              </select>
+
               {/* Temizle Butonu */}
               {(selectedCategory || selectedSubCategory || searchTerm) && (
                 <button
@@ -235,6 +268,15 @@ export default function ProductsPage() {
                   Alt Kategori: <span className="text-pink-400">{subCategories.find(s => s.id === selectedSubCategory)?.name}</span>
                 </p>
               )}
+            </div>
+            <div className="text-xs text-zinc-400">
+              Sıralama: <span className="text-pink-400 font-semibold">
+                {sortOption === 'newest' && 'Yeni Ürünler'}
+                {sortOption === 'alphabetic-asc' && 'Alfabetik (A-Z)'}
+                {sortOption === 'alphabetic-desc' && 'Alfabetik (Z-A)'}
+                {sortOption === 'price-low' && 'Fiyat (Düşük-Yüksek)'}
+                {sortOption === 'price-high' && 'Fiyat (Yüksek-Düşük)'}
+              </span>
             </div>
           </div>
         )}
