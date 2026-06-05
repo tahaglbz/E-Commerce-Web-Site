@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/app/utils/supabase/client'
 import Link from 'next/link'
 import Navbar from '@/app/components/Navbar'
+import type { User } from '@supabase/supabase-js'
 import { Category } from '@/app/types'
 
 export default function Home() {
   const router = useRouter()
   const supabase = createClient()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [categories, setCategories] = useState<Category[]>([])
 

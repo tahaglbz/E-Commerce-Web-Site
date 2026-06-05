@@ -65,19 +65,24 @@ export async function POST(request: NextRequest) {
     });
 
     // Resend'e gönder
-    const response = await resend.emails.send({
+    const { data: emailData, error: emailError } = await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL || 'noreply@tcgiftshop.com',
       to: order.customer_email,
       subject: `⚠️ Sipariş #${order.id} İptal Edildi`,
       html: emailHtml,
     });
 
+    if (emailError) {
+      console.error('Resend error:', emailError)
+      return NextResponse.json({ error: 'Mail gönderilemedi.', details: emailError.message }, { status: 500 })
+    }
+
     // Başarılı yanıt
     return NextResponse.json(
       {
         success: true,
         message: 'Sipariş iptal bildirimi maili başarıyla gönderildi!',
-        messageId: response.id,
+        messageId: emailData?.id,
         orderId: order.id,
         customerEmail: order.customer_email,
       },
