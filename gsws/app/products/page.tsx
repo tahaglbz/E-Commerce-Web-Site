@@ -86,13 +86,18 @@ export default function ProductsPage() {
   const [priceFilter, setPriceFilter] = useState<{ min: number; max: number } | null>(null)
   const [sortOption, setSortOption] = useState('newest')
 
-  // URL'den category parametresini al
+  // URL'den category ve sub parametrelerini al
   useEffect(() => {
     const categoryParam = searchParams.get('category')
+    const subParam = searchParams.get('sub')
     if (categoryParam) {
       setSelectedCategory(parseInt(categoryParam))
     }
+    if (subParam) {
+      setSelectedSubCategory(parseInt(subParam))
+    }
   }, [searchParams])
+
 
   // Veri yükle
   useEffect(() => {

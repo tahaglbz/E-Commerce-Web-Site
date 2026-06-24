@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/app/utils/supabase/client'
 import Link from 'next/link'
@@ -10,6 +10,7 @@ import {
   Coupon,
   DiscountType,
   UnifiedCartItem,
+  Category,
 } from '@/app/types'
 import {
   getLocalCart,
@@ -17,6 +18,7 @@ import {
   updateLocalCartQuantity,
   clearLocalCart,
   syncLocalCartToSupabase,
+  addToLocalCart,
 } from '@/app/utils/cartUtils'
 
 // ── Login Modal ───────────────────────────────────────────────────
@@ -197,6 +199,13 @@ export default function CartPage() {
   const [loginModalOpen, setLoginModalOpen] = useState(false)
   const [orderSuccess, setOrderSuccess] = useState(false)
 
+  // Çapraz Satış (Cross-Selling) State'leri ve Ref
+  const [categories, setCategories] = useState<Category[]>([])
+  const [recommendations, setRecommendations] = useState<Product[]>([])
+  const [recLoading, setRecLoading] = useState(false)
+  const [addingProductId, setAddingProductId] = useState<number | null>(null)
+  const sliderRef = useRef<HTMLDivElement>(null)
+
   // ── Veri Yükleme ─────────────────────────────────────────────────
   const loadCart = useCallback(async () => {
     setLoading(true)
@@ -207,6 +216,14 @@ export default function CartPage() {
       if (loggedInUser) {
         setUser({ id: loggedInUser.id, email: loggedInUser.email || '' })
         setCustomerEmail(loggedInUser.email || '')
+      }
+
+      // Kategorileri yükle
+      const { data: categoriesData } = await supabase
+        .from('categories')
+        .select('*')
+      if (categoriesData) {
+        setCategories(categoriesData as Category[])
       }
 
       const unifiedItems: UnifiedCartItem[] = []
@@ -302,6 +319,114 @@ export default function CartPage() {
   useEffect(() => {
     loadCart()
   }, [loadCart])
+
+  // Çapraz satış için sepetteki kategorilere göre ürün tavsiyesi çekme
+  useEffect(() => {
+    async function fetchRecommendations() {
+      setRecLoading(true)
+      try {
+        const cartProductIds = cartItems.map((item) => item.product_id)
+        const categoryIds = cartItems
+          .map((item) => item.product?.category_id)
+          .filter((id): id is number => id !== null && id !== undefined)
+
+        let productsData: Product[] = []
+
+        if (categoryIds.length > 0) {
+          // Sepetteki kategorilere ait diğer ürünleri getir
+          let query = supabase
+            .from('products')
+            .select('*')
+            .in('category_id', categoryIds)
+            .limit(10)
+
+          if (cartProductIds.length > 0) {
+            query = query.not('id', 'in', `(${cartProductIds.join(',')})`)
+          }
+
+          const { data } = await query
+          if (data) productsData = data as Product[]
+        }
+
+        // Eğer kategoriyle eşleşen ürün sayısı yetersizse popüler/en yeni ürünlerle doldur
+        if (productsData.length < 8) {
+          const needed = 8 - productsData.length
+          let fallbackQuery = supabase
+            .from('products')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(needed + cartProductIds.length)
+
+          const { data: fallbackData } = await fallbackQuery
+          if (fallbackData) {
+            const filteredFallback = (fallbackData as Product[]).filter(
+              (p) => !cartProductIds.includes(p.id) && !productsData.some((existing) => existing.id === p.id)
+            )
+            productsData = [...productsData, ...filteredFallback.slice(0, needed)]
+          }
+        }
+
+        setRecommendations(productsData)
+      } catch (err) {
+        console.error('Öneriler yüklenirken hata:', err)
+      } finally {
+        setRecLoading(false)
+      }
+    }
+
+    if (!loading) {
+      fetchRecommendations()
+    }
+  }, [cartItems, loading, supabase])
+
+  // Çapraz Satış Slider'ı için Sepete Ekleme Fonksiyonu
+  async function handleAddToCart(productId: number, variantId: number | null = null) {
+    setAddingProductId(productId)
+    try {
+      if (user) {
+        const existingItem = cartItems.find(
+          (item) => item.product_id === productId && item.variant_id === variantId && item.source === 'remote'
+        )
+
+        if (existingItem && existingItem.remote_id) {
+          await supabase
+            .from('cart_items')
+            .update({ quantity: existingItem.quantity + 1 })
+            .eq('id', existingItem.remote_id)
+        } else {
+          await supabase.from('cart_items').insert({
+            user_id: user.id,
+            product_id: productId,
+            variant_id: variantId,
+            quantity: 1,
+          })
+        }
+      } else {
+        addToLocalCart({ product_id: productId, variant_id: variantId, quantity: 1 })
+      }
+      
+      await loadCart()
+    } catch (err) {
+      console.error('Sepete ürün eklenirken hata oluştu:', err)
+    } finally {
+      setTimeout(() => {
+        setAddingProductId(null)
+      }, 800)
+    }
+  }
+
+  // Slider Kaydırma Fonksiyonları
+  const scrollLeft = () => {
+    if (sliderRef.current) {
+      sliderRef.current.scrollBy({ left: -260, behavior: 'smooth' })
+    }
+  }
+
+  const scrollRight = () => {
+    if (sliderRef.current) {
+      sliderRef.current.scrollBy({ left: 260, behavior: 'smooth' })
+    }
+  }
 
   // ── Adet Güncelleme ───────────────────────────────────────────────
   async function handleUpdateQuantity(
@@ -656,6 +781,151 @@ export default function CartPage() {
                 <p className="text-xs text-zinc-600 text-center">
                   💳 Ödeme yönetici onayından sonra yapılacaktır
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Öneri Ürünler (Cross-Selling Slider) ── */}
+        {!recLoading && recommendations.length > 0 && (
+          <div className="mt-16 pt-10 border-t border-zinc-900">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+                  ✨ Sizin İçin Seçtiklerimiz
+                </h3>
+                <p className="text-zinc-500 text-sm mt-1">
+                  Kategorinize özel veya ilginizi çekebilecek harika ürünler
+                </p>
+              </div>
+            </div>
+
+            <div className="relative group/slider">
+              {/* Sol Kaydırma Butonu */}
+              <button
+                onClick={scrollLeft}
+                className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 hover:text-white w-10 h-10 rounded-full border border-zinc-800/80 shadow-2xl flex items-center justify-center backdrop-blur-sm opacity-0 group-hover/slider:opacity-100 transition-all duration-300 hover:scale-105 active:scale-95"
+                title="Sola Kaydır"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+
+              {/* Sağ Kaydırma Butonu */}
+              <button
+                onClick={scrollRight}
+                className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 hover:text-white w-10 h-10 rounded-full border border-zinc-800/80 shadow-2xl flex items-center justify-center backdrop-blur-sm opacity-0 group-hover/slider:opacity-100 transition-all duration-300 hover:scale-105 active:scale-95"
+                title="Sağa Kaydır"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+
+              {/* Slider Listesi */}
+              <div
+                ref={sliderRef}
+                className="flex gap-6 overflow-x-auto scrollbar-none snap-x snap-mandatory scroll-smooth pb-4 px-1"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {recommendations.map((product) => {
+                  const basePrice = product.is_discount_active && product.discount_price
+                    ? product.discount_price
+                    : product.price
+
+                  return (
+                    <div
+                      key={product.id}
+                      className="w-[220px] flex-shrink-0 bg-zinc-900/40 border border-zinc-800/80 hover:border-pink-500/30 rounded-2xl overflow-hidden transition-all duration-300 group hover:shadow-xl hover:shadow-pink-500/5 flex flex-col justify-between snap-start"
+                    >
+                      <Link href={`/products/${product.id}`} className="block">
+                        <div className="relative w-full aspect-square bg-zinc-950/80 overflow-hidden">
+                          {product.image_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={product.image_url}
+                              alt={product.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-3xl bg-zinc-800">
+                              🖼️
+                            </div>
+                          )}
+
+                          {/* İndirim Rozeti */}
+                          {product.is_discount_active && product.discount_price && (
+                            <div className="absolute top-3 left-3 bg-gradient-to-r from-pink-500 to-violet-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg">
+                              FIRSAT 🎉
+                            </div>
+                          )}
+
+                          {/* Stok Uyarısı */}
+                          {product.stock <= 5 && product.stock > 0 && (
+                            <div className="absolute top-3 right-3 bg-red-500 text-white text-[9px] font-bold px-2 py-1 rounded-full">
+                              Son {product.stock}!
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="p-4 flex-1">
+                          <h4 className="font-medium text-sm text-zinc-200 line-clamp-2 group-hover:text-pink-400 transition-colors duration-200 h-10 mb-1 leading-snug">
+                            {product.title}
+                          </h4>
+
+                          <div className="flex items-baseline gap-2 mb-3">
+                            {product.is_discount_active && product.discount_price ? (
+                              <>
+                                <span className="text-base font-bold text-pink-400">
+                                  {product.discount_price.toFixed(2)} ₺
+                                </span>
+                                <span className="text-xs text-zinc-500 line-through">
+                                  {product.price.toFixed(2)} ₺
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-base font-bold text-white">
+                                {product.price.toFixed(2)} ₺
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="text-[10px] text-violet-400 bg-violet-500/10 px-2 py-0.5 rounded border border-violet-500/20 w-fit">
+                            {categories.find((c) => c.id === product.category_id)?.name || 'Genel'}
+                          </div>
+                        </div>
+                      </Link>
+
+                      {/* Sepete Ekle Butonu */}
+                      <div className="p-4 pt-0">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            handleAddToCart(product.id)
+                          }}
+                          disabled={product.stock === 0 || addingProductId === product.id}
+                          className={`w-full font-semibold text-xs py-2.5 px-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
+                            ${addingProductId === product.id
+                              ? 'bg-emerald-500 text-white border border-transparent'
+                              : 'bg-zinc-800 hover:bg-gradient-to-r hover:from-pink-500 hover:to-violet-600 hover:border-transparent text-zinc-300 hover:text-white border border-zinc-700/50'
+                            }`}
+                        >
+                          {addingProductId === product.id ? (
+                            <>
+                              <span>✓</span> Eklendi
+                            </>
+                          ) : (
+                            <>
+                              <span>🛒</span> {product.stock === 0 ? 'Tükendi' : 'Sepete Ekle'}
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           </div>

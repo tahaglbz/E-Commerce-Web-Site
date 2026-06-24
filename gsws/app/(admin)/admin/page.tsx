@@ -23,6 +23,7 @@ import {
 import OrderManagement from './components/OrderManagement'
 import AbandonedCarts from './components/AbandonedCarts'
 import CouponManager from './components/CouponManager'
+import ProductListManager from './components/ProductListManager'
 
 // ─────────────────────────────────────────────────────────────────
 // KATEGORİ SINIFLANDIRMA
@@ -367,7 +368,7 @@ function DimensionVariantForm({ rows, onChange }: DimensionVariantFormProps) {
 // ─────────────────────────────────────────────────────────────────
 // MAIN ADMIN DASHBOARD
 // ─────────────────────────────────────────────────────────────────
-type MainTab = 'orders' | 'abandoned-carts' | 'coupons' | 'products' | 'add-product'
+type MainTab = 'orders' | 'abandoned-carts' | 'coupons' | 'product-manager' | 'products' | 'add-product'
 type OrderSubTab = 'pending' | 'approved' | 'cancel-requests'
 
 export default function AdminDashboard() {
@@ -414,6 +415,8 @@ export default function AdminDashboard() {
   const [filterCategory, setFilterCategory] = useState('')
   const [trackingCodes, setTrackingCodes] = useState<Record<number, string>>({})
   const [savingTracking, setSavingTracking] = useState<Record<number, boolean>>({})
+  const [shippingCarriers, setShippingCarriers] = useState<Record<number, string>>({})
+  const [shippingOrder, setShippingOrder] = useState<Record<number, boolean>>({})
   const [sendingReminder, setSendingReminder] = useState<Record<string, boolean>>({})
   const [reminderSent, setReminderSent] = useState<Record<string, boolean>>({})
 
@@ -445,8 +448,13 @@ export default function AdminDashboard() {
       if (ordersData) {
         setOrders(ordersData as Order[])
         const codes: Record<number, string> = {}
-        ordersData.forEach((order: Order) => { if (order.tracking_code) codes[order.id] = order.tracking_code })
+        const carriers: Record<number, string> = {}
+        ordersData.forEach((order: Order) => { 
+          if (order.tracking_code) codes[order.id] = order.tracking_code 
+          if (order.shipping_carrier) carriers[order.id] = order.shipping_carrier
+        })
         setTrackingCodes(codes)
+        setShippingCarriers(carriers)
       }
       if (orderItemsData) setOrderItems(orderItemsData as OrderItem[])
       if (cartItemsData) setCartItems(cartItemsData as CartItem[])
@@ -618,10 +626,48 @@ export default function AdminDashboard() {
   async function handleSaveTrackingCode(orderId: number) {
     setSavingTracking((prev) => ({ ...prev, [orderId]: true }))
     try {
-      const { error } = await supabase.from('orders').update({ tracking_code: trackingCodes[orderId] || null }).eq('id', orderId)
-      if (!error) { setOrders(orders.map((o) => o.id === orderId ? { ...o, tracking_code: trackingCodes[orderId] } : o)); alert('✅ Kargo takip kodu kaydedildi!') }
+      const { error } = await supabase.from('orders').update({ tracking_code: trackingCodes[orderId] || null, shipping_carrier: shippingCarriers[orderId] || null }).eq('id', orderId)
+      if (!error) { setOrders(orders.map((o) => o.id === orderId ? { ...o, tracking_code: trackingCodes[orderId], shipping_carrier: shippingCarriers[orderId] } : o)); alert('✅ Kargo bilgileri kaydedildi!') }
       else alert(`❌ Hata: ${error.message}`)
     } finally { setSavingTracking((prev) => ({ ...prev, [orderId]: false })) }
+  }
+
+  async function handleShipOrder(orderId: number) {
+    const carrier = shippingCarriers[orderId]
+    const trackingCode = trackingCodes[orderId]
+    
+    if (!carrier || !trackingCode) {
+      alert('Lütfen kargo firmasını ve takip kodunu giriniz.')
+      return
+    }
+
+    if (!confirm('Siparişi kargoya verildi olarak işaretlemek ve müşteriye e-posta göndermek istediğinize emin misiniz?')) {
+      return
+    }
+
+    setShippingOrder((prev) => ({ ...prev, [orderId]: true }))
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'SHIPPED', shipping_carrier: carrier, tracking_code: trackingCode })
+        .eq('id', orderId)
+        
+      if (!error) {
+        setOrders(orders.map((o) => o.id === orderId ? { ...o, status: 'SHIPPED', shipping_carrier: carrier, tracking_code: trackingCode } : o))
+        
+        try { 
+          await fetch('/api/order/notify-shipped', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ orderId }) 
+          }) 
+        }
+        catch (emailError) { console.warn('Mail gönderme hatası (kargoya verildi)', emailError) }
+        
+        alert('✅ Sipariş kargoya verildi ve müşteriye bildirim gönderildi!')
+      } else { alert(`❌ Hata: ${error.message}`) }
+    } catch (err) { alert(`❌ Hata: ${err instanceof Error ? err.message : 'Bilinmeyen hata'}`) }
+    finally { setShippingOrder((prev) => ({ ...prev, [orderId]: false })) }
   }
 
   async function handleSendCartReminder(userId: string) {
@@ -674,8 +720,9 @@ export default function AdminDashboard() {
     { id: 'orders' as const, label: '📋 Siparişler', count: pendingOrders.length + cancelRequestedOrders.length },
     { id: 'abandoned-carts' as const, label: '🛒 Sepette Kalanlar', count: abandonedCartsMap.size },
     { id: 'coupons' as const, label: '🎟️ Kuponlar', count: 0 },
-    { id: 'products' as const, label: '📦 Ürün Yönetimi', count: 0 },
-    { id: 'add-product' as const, label: '➕ Ürün Ekle', count: 0 },
+    { id: 'product-manager' as const, label: '📦 Ürün / Kategori Yönetimi', count: products.length },
+    { id: 'products' as const, label: '🖼️ Vitrin (Grid)', count: 0 },
+    { id: 'add-product' as const, label: '➕ Ürün Ekle (Dosya)', count: 0 },
   ]
 
   // ─────────────────────────────────────────────────────────────────
@@ -729,6 +776,10 @@ export default function AdminDashboard() {
                 onRejectCancelRequest={handleRejectCancelRequest}
                 onSaveTrackingCode={handleSaveTrackingCode}
                 onTrackingCodeChange={(orderId, value) => setTrackingCodes((prev) => ({ ...prev, [orderId]: value }))}
+                shippingCarriers={shippingCarriers}
+                shippingOrder={shippingOrder}
+                onShippingCarrierChange={(orderId, value) => setShippingCarriers((prev) => ({ ...prev, [orderId]: value }))}
+                onShipOrder={handleShipOrder}
                 activeSubTab={orderSubTab}
                 onSubTabChange={setOrderSubTab}
               />
@@ -746,6 +797,9 @@ export default function AdminDashboard() {
 
             {/* ── KUPON YÖNETİMİ ── */}
             {activeTab === 'coupons' && <CouponManager />}
+
+            {/* ── ÜRÜN / KATEGORİ YÖNETİMİ ── */}
+            {activeTab === 'product-manager' && <ProductListManager />}
 
             {/* ── ÜRÜN YÖNETİMİ ── */}
             {activeTab === 'products' && (

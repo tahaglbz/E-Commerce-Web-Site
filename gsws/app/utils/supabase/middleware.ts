@@ -7,7 +7,7 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 // Server-side Supabase client for use in Server Components
 export async function createServerSupabaseClient() {
   const cookieStore = await cookies();
-  
+
   return createServerClient(
     supabaseUrl!,
     supabaseKey!,

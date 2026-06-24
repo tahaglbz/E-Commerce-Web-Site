@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/app/utils/supabase/client'
 import Link from 'next/link'
@@ -18,8 +18,9 @@ export default function Navbar() {
   const [cartCount, setCartCount] = useState(0)
   const [categories, setCategories] = useState<Category[]>([])
   const [subCategories, setSubCategories] = useState<SubCategory[]>([])
-  const [isCategoriesOpen, setIsCategoriesOpen] = useState(false)
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
+  // hover edilen kategori id'si
+  const [hoveredCategoryId, setHoveredCategoryId] = useState<number | null>(null)
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     async function checkUser() {
@@ -102,6 +103,28 @@ export default function Navbar() {
     }
   }, [updateCartCount])
 
+  // Hover handlers — slight delay prevents accidental close
+  function handleCategoryMouseEnter(catId: number) {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
+    setHoveredCategoryId(catId)
+  }
+
+  function handleCategoryMouseLeave() {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setHoveredCategoryId(null)
+    }, 150)
+  }
+
+  function handleDropdownMouseEnter() {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
+  }
+
+  function handleDropdownMouseLeave() {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setHoveredCategoryId(null)
+    }, 150)
+  }
+
   function CartButton() {
     return (
       <Link href="/cart" className="relative flex items-center justify-center w-10 h-10 rounded-lg hover:bg-zinc-800 transition group">
@@ -117,25 +140,102 @@ export default function Navbar() {
     )
   }
 
-  const filteredSubCategories = selectedCategoryId
-    ? subCategories.filter(sc => sc.category_id === selectedCategoryId)
+  const hoveredCatSubs = hoveredCategoryId
+    ? subCategories.filter(sc => sc.category_id === hoveredCategoryId)
     : []
 
   return (
     <nav className="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 py-4">
         {/* Top Bar */}
-        <div className="flex justify-between items-center mb-3">
+        <div className="flex justify-between items-center">
           {/* Logo */}
           <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent hover:opacity-80 transition">
             🎁 TC Gift Shop
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation — Category Hover Dropdown */}
           <div className="hidden sm:flex items-center gap-1">
-            <Link href="/products" className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition">
-              🛍️ Ürünler
-            </Link>
+            {/* Ürünler — ana dropdown trigger */}
+            <div className="relative">
+              <Link
+                href="/products"
+                className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition flex items-center gap-1"
+              >
+                🛍️ Ürünler
+              </Link>
+            </div>
+
+            {/* Kategori hover menüsü */}
+            <div className="relative flex items-center gap-1">
+              {categories.map(cat => {
+                const catSubs = subCategories.filter(sc => sc.category_id === cat.id)
+                const isHovered = hoveredCategoryId === cat.id
+                return (
+                  <div
+                    key={cat.id}
+                    className="relative"
+                    onMouseEnter={() => handleCategoryMouseEnter(cat.id)}
+                    onMouseLeave={handleCategoryMouseLeave}
+                  >
+                    <Link
+                      href={`/products?category=${cat.id}`}
+                      className={`px-3 py-2 text-xs font-medium rounded-lg transition whitespace-nowrap flex items-center gap-1 ${
+                        isHovered
+                          ? 'text-pink-400 bg-zinc-800'
+                          : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                      }`}
+                    >
+                      {cat.name}
+                      {catSubs.length > 0 && (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className={`w-3 h-3 transition-transform duration-200 ${isHovered ? 'rotate-180 text-pink-400' : ''}`}
+                          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      )}
+                    </Link>
+
+                    {/* Dropdown Panel */}
+                    {isHovered && catSubs.length > 0 && (
+                      <div
+                        className="absolute top-full left-0 mt-1 min-w-[200px] bg-zinc-950 border border-zinc-700/80 rounded-xl shadow-2xl shadow-black/60 overflow-hidden z-[60] animate-in fade-in slide-in-from-top-2 duration-150"
+                        onMouseEnter={handleDropdownMouseEnter}
+                        onMouseLeave={handleDropdownMouseLeave}
+                      >
+                        {/* Header */}
+                        <div className="px-4 py-2.5 border-b border-zinc-800 bg-zinc-900">
+                          <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{cat.name}</p>
+                        </div>
+                        {/* Alt kategori linkleri */}
+                        <div className="py-1">
+                          <Link
+                            href={`/products?category=${cat.id}`}
+                            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-400 hover:text-white hover:bg-zinc-800/70 transition group"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 group-hover:bg-pink-500 transition" />
+                            Tümünü Gör
+                          </Link>
+                          {catSubs.map(sub => (
+                            <Link
+                              key={sub.id}
+                              href={`/products?category=${cat.id}&sub=${sub.id}`}
+                              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-400 hover:text-white hover:bg-zinc-800/70 transition group"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-zinc-700 group-hover:bg-violet-500 transition" />
+                              {sub.name}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
             <Link href="/contact" className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition">
               📞 İletişim
             </Link>
@@ -227,34 +327,9 @@ export default function Navbar() {
             </div>
           )}
         </div>
-
-        {/* Categories Bar */}
-        {pathname === '/products' && (
-          <div className="pt-3 border-t border-zinc-800">
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 -mb-2">
-              <button
-                onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
-                className="shrink-0 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition whitespace-nowrap flex items-center gap-1"
-              >
-                📂 Kategoriler {isCategoriesOpen ? '▲' : '▼'}
-              </button>
-              {isCategoriesOpen && (
-                <div className="flex items-center gap-2 ml-2">
-                  {categories.map(cat => (
-                    <Link
-                      key={cat.id}
-                      href={`/products?category=${cat.id}`}
-                      className="shrink-0 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-pink-400 bg-zinc-800/50 hover:bg-zinc-700 rounded-lg transition whitespace-nowrap"
-                    >
-                      {cat.name}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Products sayfasında URL'den gelen sub category parametresini de oku */}
 
       {/* Kargo Duyuru Bandı */}
       <div className="bg-gradient-to-r from-zinc-800 via-zinc-900 to-zinc-800 border-t border-zinc-800">

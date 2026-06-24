@@ -30,7 +30,7 @@ export const createClient = (cookieStore: Awaited<ReturnType<typeof cookies>>) =
 // Server-side Supabase client factory for use in Server Components
 export async function createServerSupabaseClient() {
   const cookieStore = await cookies();
-  
+
   return createServerClient(
     supabaseUrl!,
     supabaseKey!,

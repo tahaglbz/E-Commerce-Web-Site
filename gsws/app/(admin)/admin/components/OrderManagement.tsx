@@ -55,6 +55,10 @@ interface OrderManagementProps {
   onRejectCancelRequest: (orderId: number) => void
   onSaveTrackingCode: (orderId: number) => void
   onTrackingCodeChange: (orderId: number, value: string) => void
+  shippingCarriers: Record<number, string>
+  shippingOrder: Record<number, boolean>
+  onShippingCarrierChange: (orderId: number, value: string) => void
+  onShipOrder: (orderId: number) => void
   activeSubTab: 'pending' | 'approved' | 'cancel-requests'
   onSubTabChange: (tab: 'pending' | 'approved' | 'cancel-requests') => void
 }
@@ -73,6 +77,10 @@ export default function OrderManagement({
   onRejectCancelRequest,
   onSaveTrackingCode,
   onTrackingCodeChange,
+  shippingCarriers,
+  shippingOrder,
+  onShippingCarrierChange,
+  onShipOrder,
   activeSubTab,
   onSubTabChange,
 }: OrderManagementProps) {
@@ -207,22 +215,45 @@ export default function OrderManagement({
                       </div>
                       {/* Kargo Takip */}
                       <div className="bg-zinc-950 rounded-lg p-4">
-                        <p className="text-xs font-semibold text-zinc-300 mb-3">🚚 Kargo Takip Kodu:</p>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            placeholder="Takip kodunu girin..."
-                            value={trackingCodes[order.id] ?? order.tracking_code ?? ''}
-                            onChange={(e) => onTrackingCodeChange(order.id, e.target.value)}
-                            className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-500 transition"
-                          />
-                          <button
-                            onClick={() => onSaveTrackingCode(order.id)}
-                            disabled={savingTracking[order.id]}
-                            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-zinc-700 text-white font-semibold text-sm rounded-lg transition"
-                          >
-                            {savingTracking[order.id] ? '💾...' : '💾 Kaydet'}
-                          </button>
+                        <p className="text-xs font-semibold text-zinc-300 mb-3">🚚 Kargo Bilgileri:</p>
+                        <div className="flex flex-col gap-3">
+                          <div className="flex gap-2">
+                            <select
+                              value={shippingCarriers[order.id] ?? order.shipping_carrier ?? ''}
+                              onChange={(e) => onShippingCarrierChange(order.id, e.target.value)}
+                              className="w-1/3 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500 transition"
+                            >
+                              <option value="">Firma Seçin</option>
+                              <option value="Yurtiçi Kargo">Yurtiçi Kargo</option>
+                              <option value="MNG Kargo">MNG Kargo</option>
+                              <option value="Aras Kargo">Aras Kargo</option>
+                              <option value="PTT Kargo">PTT Kargo</option>
+                              <option value="Sendeo">Sendeo</option>
+                            </select>
+                            <input
+                              type="text"
+                              placeholder="Takip kodunu girin..."
+                              value={trackingCodes[order.id] ?? order.tracking_code ?? ''}
+                              onChange={(e) => onTrackingCodeChange(order.id, e.target.value)}
+                              className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-emerald-500 transition"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => onSaveTrackingCode(order.id)}
+                              disabled={savingTracking[order.id]}
+                              className="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-800 text-zinc-300 font-semibold text-sm rounded-lg transition"
+                            >
+                              {savingTracking[order.id] ? '💾...' : '💾 Sadece Kaydet'}
+                            </button>
+                            <button
+                              onClick={() => onShipOrder(order.id)}
+                              disabled={shippingOrder[order.id]}
+                              className="flex-1 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-90 disabled:opacity-50 text-white font-bold text-sm rounded-lg transition shadow-lg shadow-emerald-500/20"
+                            >
+                              {shippingOrder[order.id] ? '⏳ İşleniyor...' : '📦 Kargoya Ver & Bildir'}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>

@@ -14,11 +14,24 @@ interface RichOrderItem extends OrderItem {
   variant?: ProductVariant | null
 }
 
+// ── Kargo Takip Linki Üretici ───────────────────────────────────────
+function getTrackingUrl(carrier: string, code: string): string {
+  switch (carrier) {
+    case 'Yurtiçi Kargo': return `https://www.yurticikargo.com/tr/online-islemler/gonderi-sorgula?code=${code}`
+    case 'MNG Kargo': return `https://www.mngkargo.com.tr/wps/portal/mng/main/kargotakip?cargoKey=${code}`
+    case 'Aras Kargo': return `https://kargotakip.araskargo.com.tr/?trackNo=${code}`
+    case 'PTT Kargo': return `https://www.ptt.gov.tr/tr/subpages/kargotakip?barcode=${code}`
+    case 'Sendeo': return `https://kargotakip.sendeo.com.tr/kargo-takip-popup?gonderiNo=${code}`
+    default: return '#'
+  }
+}
+
 // ── Durum Rozeti ──────────────────────────────────────────────────
 function StatusBadge({ status }: { status: Order['status'] }) {
   const map: Record<Order['status'], { label: string; cls: string; icon: string }> = {
     PENDING:          { label: 'Beklemede',            icon: '⏳', cls: 'bg-amber-500/15 text-amber-400 border-amber-500/30 shadow-amber-500/10' },
     APPROVED:         { label: 'Onaylandı',            icon: '✅', cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shadow-emerald-500/10' },
+    SHIPPED:          { label: 'Kargoya Verildi',      icon: '🚚', cls: 'bg-blue-500/15 text-blue-400 border-blue-500/30 shadow-blue-500/10' },
     REJECTED:         { label: 'Reddedildi',           icon: '❌', cls: 'bg-red-500/15 text-red-400 border-red-500/30 shadow-red-500/10' },
     CANCELLED:        { label: 'İptal Edildi',         icon: '🚫', cls: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30 shadow-zinc-500/10' },
     CANCEL_REQUESTED: { label: 'İptal İncelemede',     icon: '🔄', cls: 'bg-orange-500/15 text-orange-400 border-orange-500/30 shadow-orange-500/10' },
@@ -222,6 +235,7 @@ function OrderCard({
 
   const isPending = order.status === 'PENDING'
   const isApproved = order.status === 'APPROVED'
+  const isShipped = order.status === 'SHIPPED'
   const isCancelRequested = order.status === 'CANCEL_REQUESTED'
   const isCancelled = order.status === 'CANCELLED'
 
@@ -229,6 +243,7 @@ function OrderCard({
   const borderColorMap: Record<string, string> = {
     PENDING:          'border-amber-500/20 hover:border-amber-500/40',
     APPROVED:         'border-emerald-500/20 hover:border-emerald-500/40',
+    SHIPPED:          'border-blue-500/20 hover:border-blue-500/40',
     REJECTED:         'border-red-500/20 hover:border-red-500/30',
     CANCELLED:        'border-zinc-700 hover:border-zinc-600',
     CANCEL_REQUESTED: 'border-orange-500/20 hover:border-orange-500/40',
@@ -431,6 +446,19 @@ function OrderCard({
                 >
                   <span>📝</span> İptal Talebi Oluştur
                 </button>
+              )}
+
+              {/* SHIPPED → Kargo Takip */}
+              {isShipped && order.tracking_code && (
+                <a
+                  href={getTrackingUrl(order.shipping_carrier || '', order.tracking_code)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white text-sm font-bold rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/20 flex items-center gap-2"
+                >
+                  <span>📦</span> Kargo Takip Et
+                </a>
               )}
 
               {/* CANCEL_REQUESTED → İncelemede */}

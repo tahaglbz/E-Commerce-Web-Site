@@ -139,11 +139,12 @@ export interface Order {
   customer_phone: string
   customer_email?: string | null
   customer_address?: string | null
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'CANCEL_REQUESTED'
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'CANCEL_REQUESTED' | 'SHIPPED'
   total_price: number
   shipping_price?: number | null
   applied_coupon?: string | null
   tracking_code?: string | null
+  shipping_carrier?: string | null
   created_at: string
   updated_at: string
 }

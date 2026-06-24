@@ -48,19 +48,19 @@ export async function POST(request: NextRequest) {
 
     switch (carrier) {
       case 'Yurtiçi Kargo':
-        trackingUrl = \`https://www.yurticikargo.com/tr/online-islemler/gonderi-sorgula?code=\${code}\`;
+        trackingUrl = `https://www.yurticikargo.com/tr/online-islemler/gonderi-sorgula?code=${code}`;
         break;
       case 'MNG Kargo':
-        trackingUrl = \`https://www.mngkargo.com.tr/wps/portal/mng/main/kargotakip?cargoKey=\${code}\`;
+        trackingUrl = `https://www.mngkargo.com.tr/wps/portal/mng/main/kargotakip?cargoKey=${code}`;
         break;
       case 'Aras Kargo':
-        trackingUrl = \`https://kargotakip.araskargo.com.tr/?trackNo=\${code}\`;
+        trackingUrl = `https://kargotakip.araskargo.com.tr/?trackNo=${code}`;
         break;
       case 'PTT Kargo':
-        trackingUrl = \`https://www.ptt.gov.tr/tr/subpages/kargotakip?barcode=\${code}\`;
+        trackingUrl = `https://www.ptt.gov.tr/tr/subpages/kargotakip?barcode=${code}`;
         break;
       case 'Sendeo':
-        trackingUrl = \`https://kargotakip.sendeo.com.tr/kargo-takip-popup?gonderiNo=\${code}\`;
+        trackingUrl = `https://kargotakip.sendeo.com.tr/kargo-takip-popup?gonderiNo=${code}`;
         break;
     }
 
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     const response = await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL || 'noreply@tcgiftshop.com',
       to: order.customer_email,
-      subject: \`🚚 Siparişiniz Kargoya Verildi! #\${order.id}\`,
+      subject: `🚚 Siparişiniz Kargoya Verildi! #${order.id}`,
       html: emailHtml,
     });
 
