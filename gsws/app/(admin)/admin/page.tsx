@@ -369,7 +369,8 @@ function DimensionVariantForm({ rows, onChange }: DimensionVariantFormProps) {
 // MAIN ADMIN DASHBOARD
 // ─────────────────────────────────────────────────────────────────
 type MainTab = 'orders' | 'abandoned-carts' | 'coupons' | 'product-manager' | 'products' | 'add-product'
-type OrderSubTab = 'pending' | 'approved' | 'cancel-requests'
+// GUNCELLENDI: 'shipped' eklendi
+type OrderSubTab = 'pending' | 'approved' | 'cancel-requests' | 'shipped'
 
 export default function AdminDashboard() {
   const supabase = createClient()
@@ -383,7 +384,7 @@ export default function AdminDashboard() {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
 
-  // ── Ürün Form State ───────────────────────────────────────────────
+  // ── Urun Form State ───────────────────────────────────────────────
   const [newProductTitle, setNewProductTitle] = useState('')
   const [newProductDescription, setNewProductDescription] = useState('')
   const [newProductPrice, setNewProductPrice] = useState('')
@@ -423,7 +424,7 @@ export default function AdminDashboard() {
   const selectedCatName = categories.find((c) => c.id === parseInt(newProductCategory))?.name || ''
   const variantMode = categoryType(selectedCatName)
 
-  // ── Veri Yükleme ──────────────────────────────────────────────────
+  // ── Veri Yukleme ──────────────────────────────────────────────────
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
@@ -449,8 +450,8 @@ export default function AdminDashboard() {
         setOrders(ordersData as Order[])
         const codes: Record<number, string> = {}
         const carriers: Record<number, string> = {}
-        ordersData.forEach((order: Order) => { 
-          if (order.tracking_code) codes[order.id] = order.tracking_code 
+        ordersData.forEach((order: Order) => {
+          if (order.tracking_code) codes[order.id] = order.tracking_code
           if (order.shipping_carrier) carriers[order.id] = order.shipping_carrier
         })
         setTrackingCodes(codes)
@@ -459,7 +460,7 @@ export default function AdminDashboard() {
       if (orderItemsData) setOrderItems(orderItemsData as OrderItem[])
       if (cartItemsData) setCartItems(cartItemsData as CartItem[])
     } catch (err) {
-      console.error('Veri yükleme hatası:', err)
+      console.error('Veri yukleme hatasi:', err)
     } finally {
       setLoading(false)
     }
@@ -467,7 +468,7 @@ export default function AdminDashboard() {
 
   useEffect(() => { Promise.resolve().then(() => loadData()) }, [loadData])
 
-  // ── Resim Yükleme ──────────────────────────────────────────────────
+  // ── Resim Yukleme ──────────────────────────────────────────────────
   function handleImageSelect(file: File | null) {
     setNewProductImage(file)
     setNewProductImagePreview(file ? URL.createObjectURL(file) : null)
@@ -479,15 +480,15 @@ export default function AdminDashboard() {
     const uniquePart = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
     const fileName = `${prefix}-${productId}-${safeColor}-${index}-${uniquePart}.${ext}`
     const { error } = await supabase.storage.from('product-images').upload(fileName, file, { cacheControl: '3600', upsert: false })
-    if (error) throw new Error(`Resim yüklenemedi: ${fileName} — ${error.message}`)
+    if (error) throw new Error(`Resim yuklenemedi: ${fileName} - ${error.message}`)
     return supabase.storage.from('product-images').getPublicUrl(fileName).data.publicUrl
   }
 
-  // ── Yeni Ürün Ekle ────────────────────────────────────────────────
+  // ── Yeni Urun Ekle ────────────────────────────────────────────────
   async function handleAddProduct(e: React.FormEvent) {
     e.preventDefault()
     if (!newProductTitle || !newProductPrice || !newProductImage) {
-      alert('Lütfen zorunlu alanları doldurunuz (Ad, Fiyat, Ana Resim)'); return
+      alert('Lutfen zorunlu alanlari doldurunuz (Ad, Fiyat, Ana Resim)'); return
     }
     setAddingProduct(true)
     try {
@@ -500,7 +501,7 @@ export default function AdminDashboard() {
         sub_category_id: newProductSubCategory ? parseInt(newProductSubCategory) : null,
         image_url: mainImageUrl, stock: parseInt(newProductStock) || 0,
       }).select('id, title').single()
-      if (insertError || !insertedProduct) throw new Error(`Ürün DB insert hatası: ${insertError?.message ?? 'Bilinmeyen hata'}`)
+      if (insertError || !insertedProduct) throw new Error(`Urun DB insert hatasi: ${insertError?.message ?? 'Bilinmeyen hata'}`)
 
       const productId: number = insertedProduct.id
       let totalVariants = 0
@@ -513,7 +514,7 @@ export default function AdminDashboard() {
           let colorImageUrl: string | null = null
           if (group.colorImageFile) {
             try { colorImageUrl = await uploadImage(group.colorImageFile, 'color', productId, group.color, groupIdx) }
-            catch (uploadErr) { variantErrors.push(`"${group.color}" rengi için resim yüklenemedi.`); console.warn(uploadErr) }
+            catch (uploadErr) { variantErrors.push(`"${group.color}" rengi icin resim yuklenemedi.`); console.warn(uploadErr) }
           }
           const validSizes = group.sizes.filter((s) => s.size.trim())
           if (validSizes.length === 0) continue
@@ -522,7 +523,7 @@ export default function AdminDashboard() {
             size_or_dimension: sizeRow.size.trim(), stock: Math.max(0, sizeRow.stock), additional_price: Math.max(0, sizeRow.additional_price),
           }))
           const { data: insertedRows, error: variantInsertError } = await supabase.from('product_variants').insert(variantRows).select('id')
-          if (variantInsertError) variantErrors.push(`"${group.color}" rengi varyantları eklenemedi: ${variantInsertError.message}`)
+          if (variantInsertError) variantErrors.push(`"${group.color}" rengi varyantlari eklenemedi: ${variantInsertError.message}`)
           else totalVariants += insertedRows?.length ?? validSizes.length
         }
       } else if (variantMode === 'decoration') {
@@ -533,15 +534,15 @@ export default function AdminDashboard() {
             size_or_dimension: row.size_or_dimension.trim(), stock: Math.max(0, row.stock), additional_price: Math.max(0, row.additional_price),
           }))
           const { data: insertedDecoRows, error: decoInsertError } = await supabase.from('product_variants').insert(decoVariantRows).select('id')
-          if (decoInsertError) variantErrors.push(`Boyut varyantları eklenemedi: ${decoInsertError.message}`)
+          if (decoInsertError) variantErrors.push(`Boyut varyantlari eklenemedi: ${decoInsertError.message}`)
           else totalVariants += insertedDecoRows?.length ?? validRows.length
         }
       }
 
       if (variantErrors.length > 0) {
-        alert(`⚠️ Ürün eklendi ancak bazı varyantlarda sorun:\n\n${variantErrors.map((e, i) => `${i + 1}. ${e}`).join('\n')}\n\nBaşarılı varyant: ${totalVariants}`)
+        alert(`⚠️ Urun eklendi ancak bazi varyantlarda sorun:\n\n${variantErrors.map((e, i) => `${i + 1}. ${e}`).join('\n')}\n\nBasarili varyant: ${totalVariants}`)
       } else {
-        alert(`✅ Ürün başarıyla eklendi!${totalVariants > 0 ? ` ${totalVariants} varyant eklendi.` : ''}`)
+        alert(`✅ Urun basariyla eklendi!${totalVariants > 0 ? ` ${totalVariants} varyant eklendi.` : ''}`)
       }
 
       setNewProductTitle(''); setNewProductDescription(''); setNewProductPrice(''); setNewProductDiscountPrice('')
@@ -559,7 +560,7 @@ export default function AdminDashboard() {
     }
   }
 
-  // ── Ürün Güncelle ─────────────────────────────────────────────────
+  // ── Urun Guncelle ─────────────────────────────────────────────────
   async function handleUpdateProduct(updatedProduct: Partial<Product>, variants: ProductVariant[], deletedVariantIds: number[]) {
     if (!selectedProductForEdit) return
     setSavingModal(true)
@@ -582,52 +583,65 @@ export default function AdminDashboard() {
       }
       setProducts(products.map((p) => p.id === selectedProductForEdit.id ? { ...p, ...updatedProduct } : p))
       setIsModalOpen(false)
-      alert('✅ Ürün ve varyantlar güncellendi!')
-    } catch (err) { console.error(err); alert('Güncellenirken hata oluştu') }
+      alert('✅ Urun ve varyantlar guncellendi!')
+    } catch (err) { console.error(err); alert('Guncellenirken hata olustu') }
     finally { setSavingModal(false) }
   }
 
-  // ── Sipariş İşlemleri ─────────────────────────────────────────────
+  // ── Siparis Islemleri ─────────────────────────────────────────────
   async function handleApproveOrder(orderId: number) {
     try {
       const { error } = await supabase.from('orders').update({ status: 'APPROVED' }).eq('id', orderId)
       if (!error) {
         setOrders(orders.map((o) => o.id === orderId ? { ...o, status: 'APPROVED' } : o))
         try { await fetch('/api/order/notify-approved', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId }) }) }
-        catch (emailError) { console.warn('Mail gönderme hatası (onay)', emailError) }
-        alert('✅ Sipariş onaylandı!')
+        catch (emailError) { console.warn('Mail gonderme hatasi (onay)', emailError) }
+        alert('✅ Siparis onaylandi!')
       } else { alert(`❌ Hata: ${error.message}`) }
     } catch (err) { alert(`❌ Hata: ${err instanceof Error ? err.message : 'Bilinmeyen hata'}`) }
   }
 
   async function handleCancelOrder(orderId: number) {
-    if (!confirm('Bu siparişi tamamen iptal etmek istediğinize emin misiniz?')) return
+    if (!confirm('Bu siparisi tamamen iptal etmek istediginize emin misiniz?')) return
     try {
       const { error } = await supabase.from('orders').update({ status: 'CANCELLED' }).eq('id', orderId)
       if (!error) {
         setOrders(orders.map((o) => o.id === orderId ? { ...o, status: 'CANCELLED' as const } : o))
         try { await fetch('/api/order/notify-cancellation', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId }) }) }
-        catch (emailError) { console.warn('Mail gönderme hatası (iptal)', emailError) }
-        alert('🚫 Sipariş iptal edildi!')
-      } else { alert(`❌ İptal hatası: ${error.message}`) }
+        catch (emailError) { console.warn('Mail gonderme hatasi (iptal)', emailError) }
+        alert('🚫 Siparis iptal edildi!')
+      } else { alert(`❌ Iptal hatasi: ${error.message}`) }
     } catch (err) { alert(`❌ Hata: ${err instanceof Error ? err.message : 'Bilinmeyen hata'}`) }
   }
 
   async function handleApproveCancelRequest(orderId: number) {
     const { error } = await supabase.from('orders').update({ status: 'CANCELLED' }).eq('id', orderId)
-    if (!error) { setOrders(orders.map((o) => o.id === orderId ? { ...o, status: 'CANCELLED' as const } : o)); alert('✅ İptal talebi onaylandı!') }
+    if (!error) { setOrders(orders.map((o) => o.id === orderId ? { ...o, status: 'CANCELLED' as const } : o)); alert('✅ Iptal talebi onaylandi!') }
   }
 
   async function handleRejectCancelRequest(orderId: number) {
     const { error } = await supabase.from('orders').update({ status: 'APPROVED' }).eq('id', orderId)
-    if (!error) { setOrders(orders.map((o) => o.id === orderId ? { ...o, status: 'APPROVED' as const } : o)); alert('❌ İptal talebi reddedildi!') }
+    if (!error) { setOrders(orders.map((o) => o.id === orderId ? { ...o, status: 'APPROVED' as const } : o)); alert('❌ Iptal talebi reddedildi!') }
   }
 
+  // GUNCELLENDI: Kargo kaydedildiginde otomatik SHIPPED yap
   async function handleSaveTrackingCode(orderId: number) {
     setSavingTracking((prev) => ({ ...prev, [orderId]: true }))
     try {
-      const { error } = await supabase.from('orders').update({ tracking_code: trackingCodes[orderId] || null, shipping_carrier: shippingCarriers[orderId] || null }).eq('id', orderId)
-      if (!error) { setOrders(orders.map((o) => o.id === orderId ? { ...o, tracking_code: trackingCodes[orderId], shipping_carrier: shippingCarriers[orderId] } : o)); alert('✅ Kargo bilgileri kaydedildi!') }
+      const { error } = await supabase.from('orders').update({
+        tracking_code: trackingCodes[orderId] || null,
+        shipping_carrier: shippingCarriers[orderId] || null,
+        status: 'SHIPPED'
+      }).eq('id', orderId)
+      if (!error) {
+        setOrders(orders.map((o) => o.id === orderId ? {
+          ...o,
+          tracking_code: trackingCodes[orderId],
+          shipping_carrier: shippingCarriers[orderId],
+          status: 'SHIPPED' as const
+        } : o))
+        alert('✅ Kargo bilgileri kaydedildi ve siparis kargoya verildi olarak isaretlendi!')
+      }
       else alert(`❌ Hata: ${error.message}`)
     } finally { setSavingTracking((prev) => ({ ...prev, [orderId]: false })) }
   }
@@ -635,13 +649,13 @@ export default function AdminDashboard() {
   async function handleShipOrder(orderId: number) {
     const carrier = shippingCarriers[orderId]
     const trackingCode = trackingCodes[orderId]
-    
+
     if (!carrier || !trackingCode) {
-      alert('Lütfen kargo firmasını ve takip kodunu giriniz.')
+      alert('Lutfen kargo firmasini ve takip kodunu giriniz.')
       return
     }
 
-    if (!confirm('Siparişi kargoya verildi olarak işaretlemek ve müşteriye e-posta göndermek istediğinize emin misiniz?')) {
+    if (!confirm('Siparisi kargoya verildi olarak isaretlemek ve musteriye e-posta gondermek istediginize emin misiniz?')) {
       return
     }
 
@@ -651,20 +665,20 @@ export default function AdminDashboard() {
         .from('orders')
         .update({ status: 'SHIPPED', shipping_carrier: carrier, tracking_code: trackingCode })
         .eq('id', orderId)
-        
+
       if (!error) {
         setOrders(orders.map((o) => o.id === orderId ? { ...o, status: 'SHIPPED', shipping_carrier: carrier, tracking_code: trackingCode } : o))
-        
-        try { 
-          await fetch('/api/order/notify-shipped', { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ orderId }) 
-          }) 
+
+        try {
+          await fetch('/api/order/notify-shipped', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId })
+          })
         }
-        catch (emailError) { console.warn('Mail gönderme hatası (kargoya verildi)', emailError) }
-        
-        alert('✅ Sipariş kargoya verildi ve müşteriye bildirim gönderildi!')
+        catch (emailError) { console.warn('Mail gonderme hatasi (kargoya verildi)', emailError) }
+
+        alert('✅ Siparis kargoya verildi ve musteriye bildirim gonderildi!')
       } else { alert(`❌ Hata: ${error.message}`) }
     } catch (err) { alert(`❌ Hata: ${err instanceof Error ? err.message : 'Bilinmeyen hata'}`) }
     finally { setShippingOrder((prev) => ({ ...prev, [orderId]: false })) }
@@ -677,19 +691,19 @@ export default function AdminDashboard() {
       const data = await response.json()
       if (response.ok) {
         setReminderSent((prev) => ({ ...prev, [userId]: true }))
-        alert(`✅ Sepet hatırlatma maili gönderildi! (${data.itemCount} ürün)`)
-      } else { alert(`❌ Hata: ${data.error || 'Mail gönderilemedi'}`) }
+        alert(`✅ Sepet hatirlatici maili gonderildi! (${data.itemCount} urun)`)
+      } else { alert(`❌ Hata: ${data.error || 'Mail gonderilemedi'}`) }
     } catch (error) { alert(`❌ Hata: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`) }
     finally { setSendingReminder((prev) => ({ ...prev, [userId]: false })) }
   }
 
   async function handleDeleteProduct(productId: number) {
-    if (!confirm('Bu ürünü silmek istediğinize emin misiniz? Tüm varyantlar da silinecek.')) return
+    if (!confirm('Bu urunu silmek istediginize emin misiniz? Tum varyantlar da silinecek.')) return
     const { error } = await supabase.from('products').delete().eq('id', productId)
-    if (!error) { setProducts(products.filter((p) => p.id !== productId)); alert('✅ Ürün silindi!') }
+    if (!error) { setProducts(products.filter((p) => p.id !== productId)); alert('✅ Urun silindi!') }
   }
 
-  // ── Türetilmiş Veriler ────────────────────────────────────────────
+  // ── Turetilmis Veriler ────────────────────────────────────────────
   const filteredProducts = products.filter((p) => {
     const matchesSearch = p.title.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = !filterCategory || p.category_id?.toString() === filterCategory
@@ -713,16 +727,19 @@ export default function AdminDashboard() {
   const pendingOrders = orders.filter((o) => o.status === 'PENDING')
   const approvedOrders = orders.filter((o) => o.status === 'APPROVED')
   const cancelRequestedOrders = orders.filter((o) => o.status === 'CANCEL_REQUESTED')
+  // YENI: shippedOrders filtresi eklendi
+  const shippedOrders = orders.filter((o) => o.status === 'SHIPPED')
   const newProductCategorySubList = subCategories.filter((sub) => sub.category_id === parseInt(newProductCategory))
   const abandonedCartsList = Array.from(abandonedCartsMap.values())
 
   const mainTabs = [
-    { id: 'orders' as const, label: '📋 Siparişler', count: pendingOrders.length + cancelRequestedOrders.length },
+    // GUNCELLENDI: shippedOrders count eklendi
+    { id: 'orders' as const, label: '📋 Siparisler', count: pendingOrders.length + cancelRequestedOrders.length + shippedOrders.length },
     { id: 'abandoned-carts' as const, label: '🛒 Sepette Kalanlar', count: abandonedCartsMap.size },
     { id: 'coupons' as const, label: '🎟️ Kuponlar', count: 0 },
-    { id: 'product-manager' as const, label: '📦 Ürün / Kategori Yönetimi', count: products.length },
+    { id: 'product-manager' as const, label: '📦 Urun / Kategori Yonetimi', count: products.length },
     { id: 'products' as const, label: '🖼️ Vitrin (Grid)', count: 0 },
-    { id: 'add-product' as const, label: '➕ Ürün Ekle (Dosya)', count: 0 },
+    { id: 'add-product' as const, label: '➕ Urun Ekle (Dosya)', count: 0 },
   ]
 
   // ─────────────────────────────────────────────────────────────────
@@ -733,7 +750,7 @@ export default function AdminDashboard() {
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <Link href="/" className="text-pink-500 hover:text-pink-400 text-sm font-medium transition">← Ana Sayfa</Link>
           <h1 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent">🏢 TC Gift Shop Admin</h1>
-          <button onClick={async () => { await supabase.auth.signOut(); window.location.href = '/auth/login' }} className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-medium transition">🚪 Çıkış</button>
+          <button onClick={async () => { await supabase.auth.signOut(); window.location.href = '/auth/login' }} className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-medium transition">🚪 Cikis</button>
         </div>
       </header>
 
@@ -755,17 +772,18 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-center py-20">
             <div className="flex flex-col items-center gap-4">
               <div className="w-10 h-10 rounded-full border-4 border-pink-500 border-t-transparent animate-spin" />
-              <p className="text-zinc-400 text-sm">Yükleniyor...</p>
+              <p className="text-zinc-400 text-sm">Yukleniyor...</p>
             </div>
           </div>
         ) : (
           <>
-            {/* ── SİPARİŞLER ── */}
+            {/* ── SIPARISLER ── */}
             {activeTab === 'orders' && (
               <OrderManagement
                 pendingOrders={pendingOrders}
                 approvedOrders={approvedOrders}
                 cancelRequestedOrders={cancelRequestedOrders}
+                shippedOrders={shippedOrders}
                 orderItems={orderItems}
                 products={products}
                 trackingCodes={trackingCodes}
@@ -785,7 +803,7 @@ export default function AdminDashboard() {
               />
             )}
 
-            {/* ── TERKEDİLMİŞ SEPETLER ── */}
+            {/* ── TERKEDILMIS SEPETLER ── */}
             {activeTab === 'abandoned-carts' && (
               <AbandonedCarts
                 abandonedCarts={abandonedCartsList}
@@ -795,38 +813,38 @@ export default function AdminDashboard() {
               />
             )}
 
-            {/* ── KUPON YÖNETİMİ ── */}
+            {/* ── KUPON YONETIMI ── */}
             {activeTab === 'coupons' && <CouponManager />}
 
-            {/* ── ÜRÜN / KATEGORİ YÖNETİMİ ── */}
+            {/* ── URUN / KATEGORI YONETIMI ── */}
             {activeTab === 'product-manager' && <ProductListManager />}
 
-            {/* ── ÜRÜN YÖNETİMİ ── */}
+            {/* ── URUN YONETIMI ── */}
             {activeTab === 'products' && (
               <div>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                  <h2 className="text-2xl font-bold">📦 Mağaza Vitrin Yönetimi</h2>
+                  <h2 className="text-2xl font-bold">📦 Magaza Vitrin Yonetimi</h2>
                   <div className="flex gap-3 w-full sm:w-auto">
-                    <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="🔍 Ürün ara..." className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-pink-500 transition" />
+                    <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="🔍 Urun ara..." className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-pink-500 transition" />
                     <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-pink-500 transition">
-                      <option value="">Tüm Kategoriler</option>
+                      <option value="">Tum Kategoriler</option>
                       {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                     </select>
                   </div>
                 </div>
                 {filteredProducts.length === 0 ? (
-                  <p className="text-zinc-400 text-center py-12">❌ Ürün bulunamadı</p>
+                  <p className="text-zinc-400 text-center py-12">❌ Urun bulunamadi</p>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredProducts.map((product) => (
                       <div key={product.id} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden hover:border-pink-500/50 transition group">
                         <div className="relative w-full aspect-square bg-zinc-950 overflow-hidden">
                           {product.image_url
-                            ? <img src={product.image_url} alt={product.title} className="w-full h-full object-cover group-hover:scale-110 transition duration-300" /> // eslint-disable-line @next/next/no-img-element
+                            ? <img src={product.image_url} alt={product.title} className="w-full h-full object-cover group-hover:scale-110 transition duration-300" />
                             : <div className="w-full h-full flex items-center justify-center text-4xl bg-zinc-800">🖼️</div>}
-                          {product.is_discount_active && <div className="absolute top-2 left-2 bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-lg">🎉 İndirim</div>}
-                          {product.stock > 0 && product.stock <= 5 && <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-lg animate-pulse">⚠️ {product.stock} kaldı</div>}
-                          {product.stock === 0 && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><p className="text-white font-bold text-lg">Tükendi</p></div>}
+                          {product.is_discount_active && <div className="absolute top-2 left-2 bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-lg">🎉 Indirim</div>}
+                          {product.stock > 0 && product.stock <= 5 && <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-lg animate-pulse">⚠️ {product.stock} kaldi</div>}
+                          {product.stock === 0 && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><p className="text-white font-bold text-lg">Tukendi</p></div>}
                         </div>
                         <div className="p-4">
                           <h3 className="font-bold text-sm line-clamp-2 mb-2 text-zinc-100">{product.title}</h3>
@@ -837,7 +855,7 @@ export default function AdminDashboard() {
                           </div>
                           <p className="text-xs text-zinc-400 mb-4">📦 Stok: <span className={product.stock > 5 ? 'text-emerald-400' : 'text-amber-400'}>{product.stock}</span></p>
                           <div className="flex gap-2">
-                            <button onClick={() => { setSelectedProductForEdit(product); setIsModalOpen(true) }} className="flex-1 bg-pink-500 hover:bg-pink-600 text-white text-xs font-bold py-2.5 rounded-lg transition">✏️ Düzenle</button>
+                            <button onClick={() => { setSelectedProductForEdit(product); setIsModalOpen(true) }} className="flex-1 bg-pink-500 hover:bg-pink-600 text-white text-xs font-bold py-2.5 rounded-lg transition">✏️ Duzenle</button>
                             <button onClick={() => handleDeleteProduct(product.id)} className="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-2.5 rounded-lg transition">🗑️ Sil</button>
                           </div>
                         </div>
@@ -848,22 +866,22 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* ── YENİ ÜRÜN EKLE ── */}
+            {/* ── YENI URUN EKLE ── */}
             {activeTab === 'add-product' && (
               <div>
-                <h2 className="text-2xl font-bold mb-6">➕ Yeni Ürün Ekle</h2>
+                <h2 className="text-2xl font-bold mb-6">➕ Yeni Urun Ekle</h2>
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 max-w-4xl">
                   <form onSubmit={handleAddProduct} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-xs font-semibold text-zinc-300 uppercase mb-2">Ürün Adı *</label>
-                        <input type="text" value={newProductTitle} onChange={(e) => setNewProductTitle(e.target.value)} placeholder="Örn: Siyah Anime Tişört" className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-pink-500 transition" required />
+                        <label className="block text-xs font-semibold text-zinc-300 uppercase mb-2">Urun Adi *</label>
+                        <input type="text" value={newProductTitle} onChange={(e) => setNewProductTitle(e.target.value)} placeholder="Orn: Siyah Anime Tisort" className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-pink-500 transition" required />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-zinc-300 uppercase mb-2">Ürün Tipi</label>
+                        <label className="block text-xs font-semibold text-zinc-300 uppercase mb-2">Urun Tipi</label>
                         <select value={newProductType} onChange={(e) => setNewProductType(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-pink-500 transition h-[42px]">
-                          <option value="PHYSICAL">👕 Fiziksel Ürün</option>
-                          <option value="DIGITAL">🎮 Dijital Ürün</option>
+                          <option value="PHYSICAL">👕 Fiziksel Urun</option>
+                          <option value="DIGITAL">🎮 Dijital Urun</option>
                         </select>
                       </div>
                     </div>
@@ -871,14 +889,14 @@ export default function AdminDashboard() {
                       <div>
                         <label className="block text-xs font-semibold text-zinc-300 uppercase mb-2">Kategori</label>
                         <select value={newProductCategory} onChange={(e) => { setNewProductCategory(e.target.value); setNewProductSubCategory('') }} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-pink-500 transition h-[42px]">
-                          <option value="">Seçiniz</option>
+                          <option value="">Seciniz</option>
                           {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-zinc-300 uppercase mb-2">Alt Kategori</label>
                         <select value={newProductSubCategory} onChange={(e) => setNewProductSubCategory(e.target.value)} disabled={!newProductCategory} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-pink-500 transition h-[42px] disabled:opacity-50">
-                          <option value="">Seçiniz</option>
+                          <option value="">Seciniz</option>
                           {newProductCategorySubList.map((sub) => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
                         </select>
                       </div>
@@ -889,7 +907,7 @@ export default function AdminDashboard() {
                         <input type="number" step="0.01" value={newProductPrice} onChange={(e) => setNewProductPrice(e.target.value)} placeholder="99.99" className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-pink-500 transition" required />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-zinc-300 uppercase mb-2">İndirimli Fiyat (₺)</label>
+                        <label className="block text-xs font-semibold text-zinc-300 uppercase mb-2">Indirimli Fiyat (₺)</label>
                         <input type="number" step="0.01" value={newProductDiscountPrice} onChange={(e) => setNewProductDiscountPrice(e.target.value)} placeholder="74.99" className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-pink-500 transition" />
                       </div>
                       <div>
@@ -898,22 +916,21 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-zinc-300 uppercase mb-2">Açıklama</label>
-                      <textarea value={newProductDescription} onChange={(e) => setNewProductDescription(e.target.value)} placeholder="Ürün özellikleri..." rows={3} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-pink-500 transition resize-none" />
+                      <label className="block text-xs font-semibold text-zinc-300 uppercase mb-2">Aciklama</label>
+                      <textarea value={newProductDescription} onChange={(e) => setNewProductDescription(e.target.value)} placeholder="Urun ozellikleri..." rows={3} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-pink-500 transition resize-none" />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-zinc-300 uppercase mb-2">Ana Ürün Resmi *</label>
+                      <label className="block text-xs font-semibold text-zinc-300 uppercase mb-2">Ana Urun Resmi *</label>
                       <div className="flex gap-4 items-start">
                         <label className="flex-1 border-2 border-dashed border-zinc-700 hover:border-pink-500 rounded-xl p-6 cursor-pointer transition group text-center">
                           <input type="file" accept="image/*" onChange={(e) => handleImageSelect(e.target.files?.[0] || null)} className="hidden" />
                           <div className="text-3xl mb-2 group-hover:scale-110 transition">📷</div>
                           <p className="text-sm text-zinc-400 group-hover:text-pink-400 transition">
-                            {newProductImage ? <span className="text-emerald-400 font-semibold">✅ {newProductImage.name}</span> : 'Tıklayarak ana ürün resmini seçin'}
+                            {newProductImage ? <span className="text-emerald-400 font-semibold">✅ {newProductImage.name}</span> : 'Tiklayarak ana urun resmini secin'}
                           </p>
                         </label>
                         {newProductImagePreview && (
                           <div className="w-28 h-28 rounded-xl overflow-hidden border-2 border-zinc-700 flex-shrink-0">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={newProductImagePreview} alt="preview" className="w-full h-full object-cover" />
                           </div>
                         )}
@@ -925,8 +942,8 @@ export default function AdminDashboard() {
                         <div className="flex items-start gap-3">
                           <div className="p-2 bg-pink-500/10 rounded-xl"><span className="text-2xl">👕</span></div>
                           <div>
-                            <h3 className="text-base font-bold text-pink-400">Giyim Varyant Yönetimi</h3>
-                            <p className="text-xs text-zinc-400 mt-0.5">Her renk için ayrı fotoğraf yükleyin, bedenleri ve stoklarını girin.</p>
+                            <h3 className="text-base font-bold text-pink-400">Giyim Varyant Yonetimi</h3>
+                            <p className="text-xs text-zinc-400 mt-0.5">Her renk icin ayri fotograf yukleyin, bedenleri ve stoklarini girin.</p>
                           </div>
                         </div>
                         <ClothingVariantForm colorGroups={clothingColorGroups} onChange={setClothingColorGroups} />
@@ -938,8 +955,8 @@ export default function AdminDashboard() {
                         <div className="flex items-start gap-3">
                           <div className="p-2 bg-emerald-500/10 rounded-xl"><span className="text-2xl">🖼️</span></div>
                           <div>
-                            <h3 className="text-base font-bold text-emerald-400">Boyut Varyant Yönetimi</h3>
-                            <p className="text-xs text-zinc-400 mt-0.5">Ürünün mevcut boyutlarını ve stok/fiyat farkını girin.</p>
+                            <h3 className="text-base font-bold text-emerald-400">Boyut Varyant Yonetimi</h3>
+                            <p className="text-xs text-zinc-400 mt-0.5">Urunun mevcut boyutlarini ve stok/fiyat farkini girin.</p>
                           </div>
                         </div>
                         <DimensionVariantForm rows={dimensionRows} onChange={setDimensionRows} />
@@ -950,8 +967,8 @@ export default function AdminDashboard() {
                       <div className="border border-zinc-700 rounded-2xl p-5 bg-zinc-950/50 flex items-center gap-4">
                         <span className="text-3xl">ℹ️</span>
                         <div>
-                          <p className="text-sm font-semibold text-zinc-300">Bu kategori için varyant eklenmez</p>
-                          <p className="text-xs text-zinc-500 mt-0.5">Hediyelik ve Dijital ürünler için &quot;Genel Stok&quot; alanını kullanın.</p>
+                          <p className="text-sm font-semibold text-zinc-300">Bu kategori icin varyant eklenmez</p>
+                          <p className="text-xs text-zinc-500 mt-0.5">Hediyelik ve Dijital urunler icin &quot;Genel Stok&quot; alanini kullanin.</p>
                         </div>
                       </div>
                     )}
@@ -959,7 +976,7 @@ export default function AdminDashboard() {
                     {!newProductCategory && (
                       <div className="border border-zinc-700/50 rounded-2xl p-5 bg-zinc-950/30 flex items-center gap-4">
                         <span className="text-2xl opacity-50">🏷️</span>
-                        <p className="text-sm text-zinc-500">Varyant seçeneklerini görmek için bir <span className="text-zinc-300 font-semibold">kategori</span> seçin.</p>
+                        <p className="text-sm text-zinc-500">Varyant seceneklerini gormek icin bir <span className="text-zinc-300 font-semibold">kategori</span> secin.</p>
                       </div>
                     )}
 
@@ -967,9 +984,9 @@ export default function AdminDashboard() {
                       {addingProduct ? (
                         <span className="flex items-center justify-center gap-2">
                           <span className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                          Ürün ekleniyor, lütfen bekleyin...
+                          Urun ekleniyor, lutfen bekleyin...
                         </span>
-                      ) : '➕ Ürünü Mağazaya Ekle'}
+                      ) : '➕ Urunu Magazaya Ekle'}
                     </button>
                   </form>
                 </div>

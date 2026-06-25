@@ -45,6 +45,7 @@ interface OrderManagementProps {
   pendingOrders: Order[]
   approvedOrders: Order[]
   cancelRequestedOrders: Order[]
+  shippedOrders: Order[] // 🆕 EKLENDİ
   orderItems: OrderItem[]
   products: Product[]
   trackingCodes: Record<number, string>
@@ -59,14 +60,15 @@ interface OrderManagementProps {
   shippingOrder: Record<number, boolean>
   onShippingCarrierChange: (orderId: number, value: string) => void
   onShipOrder: (orderId: number) => void
-  activeSubTab: 'pending' | 'approved' | 'cancel-requests'
-  onSubTabChange: (tab: 'pending' | 'approved' | 'cancel-requests') => void
+  activeSubTab: 'pending' | 'approved' | 'cancel-requests' | 'shipped' // 🆕 'shipped' eklendi
+  onSubTabChange: (tab: 'pending' | 'approved' | 'cancel-requests' | 'shipped') => void // 🆕 'shipped' eklendi
 }
 
 export default function OrderManagement({
   pendingOrders,
   approvedOrders,
   cancelRequestedOrders,
+  shippedOrders, // 🆕 EKLENDİ
   orderItems,
   products,
   trackingCodes,
@@ -88,6 +90,7 @@ export default function OrderManagement({
     { id: 'pending' as const, label: '⏳ Onay Bekliyor', count: pendingOrders.length, color: 'amber' },
     { id: 'approved' as const, label: '✅ Onaylananlar', count: approvedOrders.length, color: 'emerald' },
     { id: 'cancel-requests' as const, label: '🔴 İptal Talepleri', count: cancelRequestedOrders.length, color: 'red' },
+    { id: 'shipped' as const, label: '🚚 Kargolananlar', count: shippedOrders.length, color: 'blue' }, // 🆕 EKLENDİ
   ]
 
   return (
@@ -102,11 +105,10 @@ export default function OrderManagement({
           <button
             key={tab.id}
             onClick={() => onSubTabChange(tab.id)}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap -mb-px ${
-              activeSubTab === tab.id
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap -mb-px ${activeSubTab === tab.id
                 ? 'border-pink-500 text-pink-400'
                 : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
+              }`}
           >
             {tab.label}
             {tab.count > 0 && (
@@ -229,6 +231,9 @@ export default function OrderManagement({
                               <option value="Aras Kargo">Aras Kargo</option>
                               <option value="PTT Kargo">PTT Kargo</option>
                               <option value="Sendeo">Sendeo</option>
+                              <option value="Sürat Kargo">Sürat Kargo</option>
+                              <option value="UPS Kargo">UPS Kargo</option>
+                              <option value="Kargoist">Kargoist</option>
                             </select>
                             <input
                               type="text"
@@ -242,18 +247,21 @@ export default function OrderManagement({
                             <button
                               onClick={() => onSaveTrackingCode(order.id)}
                               disabled={savingTracking[order.id]}
-                              className="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-800 text-zinc-300 font-semibold text-sm rounded-lg transition"
+                              className="flex-1 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:opacity-90 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition shadow-lg shadow-blue-500/20"
                             >
-                              {savingTracking[order.id] ? '💾...' : '💾 Sadece Kaydet'}
+                              {savingTracking[order.id] ? '💾 Kaydediliyor...' : '📦 Kaydet & Kargoya Ver'}
                             </button>
                             <button
                               onClick={() => onShipOrder(order.id)}
                               disabled={shippingOrder[order.id]}
                               className="flex-1 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-90 disabled:opacity-50 text-white font-bold text-sm rounded-lg transition shadow-lg shadow-emerald-500/20"
                             >
-                              {shippingOrder[order.id] ? '⏳ İşleniyor...' : '📦 Kargoya Ver & Bildir'}
+                              {shippingOrder[order.id] ? '⏳ İşleniyor...' : '📧 Kargoya Ver & Bildir'}
                             </button>
                           </div>
+                          <p className="text-xs text-zinc-500 text-center">
+                            💡 &quot;Kaydet & Kargoya Ver&quot; butonu siparişi otomatik olarak <span className="text-blue-400 font-semibold">Kargolananlar</span> sekmesine taşır.
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -334,6 +342,79 @@ export default function OrderManagement({
                 </div>
               </div>
             ))}
+          </div>
+        )
+      )}
+
+      {/* 🆕 ── KARGOLANANLAR ── */}
+      {activeSubTab === 'shipped' && (
+        shippedOrders.length === 0 ? (
+          <div className="text-center py-16">
+            <p className="text-4xl mb-3">📭</p>
+            <p className="text-zinc-400">Henüz kargoya verilen sipariş yok</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {shippedOrders.map((order) => {
+              const items = orderItems.filter((oi) => oi.order_id === order.id)
+              return (
+                <div key={order.id} className="bg-zinc-900 border-2 border-blue-500/30 hover:border-blue-500 rounded-xl p-6 transition">
+                  <div className="flex flex-col md:flex-row justify-between gap-6">
+                    <div className="space-y-3 flex-1">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <h3 className="text-lg font-bold text-white">{order.customer_name}</h3>
+                        <span className="text-xs bg-blue-500/10 text-blue-400 px-2 py-1 rounded border border-blue-500/20">🚚 KARGOYA VERİLDİ</span>
+                        <span className="text-xs text-zinc-500">#{order.id}</span>
+                      </div>
+                      <div className="bg-zinc-950 rounded-lg p-4 space-y-1.5">
+                        <p className="text-sm font-semibold text-zinc-300 mb-2">Müşteri Detayları:</p>
+                        <p className="text-sm text-zinc-400">📞 {order.customer_phone}</p>
+                        {order.customer_email && <p className="text-sm text-zinc-400">📧 {order.customer_email}</p>}
+                        {order.customer_address && <p className="text-sm text-zinc-400">🏠 {order.customer_address}</p>}
+                        <p className="text-xs text-zinc-500 pt-1">
+                          📅 {new Date(order.created_at).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      <div className="bg-zinc-950 rounded-lg p-4">
+                        <p className="text-xs font-semibold text-zinc-300 mb-3">Sipariş Öğeleri:</p>
+                        <OrderItemList items={items} products={products} />
+                      </div>
+                      {/* Kargo Bilgileri (Salt Okunur) */}
+                      <div className="bg-gradient-to-r from-blue-500/5 to-indigo-500/5 border border-blue-500/20 rounded-lg p-4">
+                        <p className="text-xs font-semibold text-blue-400 mb-3">📦 Kargo Bilgileri</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {order.shipping_carrier && (
+                            <div className="bg-zinc-950/50 rounded-lg p-3 border border-zinc-800/50">
+                              <p className="text-xs text-zinc-500 uppercase font-semibold mb-1">Kargo Firması</p>
+                              <p className="text-sm font-bold text-white">{order.shipping_carrier}</p>
+                            </div>
+                          )}
+                          {order.tracking_code && (
+                            <div className="bg-zinc-950/50 rounded-lg p-3 border border-zinc-800/50">
+                              <p className="text-xs text-zinc-500 uppercase font-semibold mb-1">Takip Kodu</p>
+                              <p className="text-sm font-mono font-bold text-blue-400">{order.tracking_code}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col justify-between md:items-end gap-3">
+                      <div className="text-right bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
+                        <p className="text-xs text-zinc-400">Toplam Tutar</p>
+                        <p className="text-3xl font-bold text-blue-400">{order.total_price.toFixed(2)} ₺</p>
+                        {order.shipping_price != null && (
+                          <p className="text-xs text-zinc-500 mt-1">Kargo: {order.shipping_price === 0 ? 'Ücretsiz' : `${order.shipping_price.toFixed(2)} ₺`}</p>
+                        )}
+                      </div>
+                      <span className="px-5 py-2 bg-blue-500/10 border border-blue-500/30 text-blue-400 text-sm font-bold rounded-xl cursor-default flex items-center gap-2">
+                        <span className="w-4 h-4 rounded-full border-2 border-blue-400 border-t-transparent animate-spin" />
+                        Kargoda 🚚
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )
       )}
