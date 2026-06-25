@@ -180,11 +180,10 @@ export default function Navbar() {
                   >
                     <Link
                       href={`/products?category=${cat.id}`}
-                      className={`px-3 py-2 text-xs font-medium rounded-lg transition whitespace-nowrap flex items-center gap-1 ${
-                        isHovered
+                      className={`px-3 py-2 text-xs font-medium rounded-lg transition whitespace-nowrap flex items-center gap-1 ${isHovered
                           ? 'text-pink-400 bg-zinc-800'
                           : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                      }`}
+                        }`}
                     >
                       {cat.name}
                       {catSubs.length > 0 && (
@@ -276,15 +275,7 @@ export default function Navbar() {
                       onClick={() => setIsDropdownOpen(false)}
                       className="flex items-center gap-2 w-full px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition"
                     >
-                      <span>👤</span> Profilim
-                    </Link>
-
-                    <Link
-                      href="/orders"
-                      onClick={() => setIsDropdownOpen(false)}
-                      className="flex items-center gap-2 w-full px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition border-t border-zinc-800"
-                    >
-                      <span>📦</span> Siparişlerim
+                      <span>👤</span> Profilim ve Siparişlerim
                     </Link>
 
                     <Link

@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -8,22 +9,22 @@ import Navbar from '@/app/components/Navbar'
 import { Order, OrderItem, Product, ProductVariant } from '@/app/types'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
-// ── Zenginleştirilmiş Sipariş Öğesi ──────────────────────────────
+// ── Zenginlestirilmis Siparis Ogesi ──────────────────────────────
 interface RichOrderItem extends OrderItem {
   product?: Product
   variant?: ProductVariant | null
 }
 
-// ── Kargo Takip Linki Üretici ───────────────────────────────────────
+// ── Kargo Takip Linki Uretici ───────────────────────────────────────
 function getTrackingUrl(carrier: string, code: string): string {
   const c = carrier?.trim() || ''
   switch (c) {
-    case 'Yurtiçi Kargo': return `https://www.yurticikargo.com/tr/online-islemler/gonderi-sorgula?code=${code}`
+    case 'Yurtici Kargo': return `https://www.yurticikargo.com/tr/online-islemler/gonderi-sorgula?code=${code}`
     case 'MNG Kargo': return `https://www.mngkargo.com.tr/wps/portal/mng/main/kargotakip?cargoKey=${code}`
     case 'Aras Kargo': return `https://kargotakip.araskargo.com.tr/?trackNo=${code}`
     case 'PTT Kargo': return `https://www.ptt.gov.tr/tr/subpages/kargotakip?barcode=${code}`
     case 'Sendeo': return `https://kargotakip.sendeo.com.tr/kargo-takip-popup?gonderiNo=${code}`
-    case 'Sürat Kargo': return `https://www.suratkargo.com.tr/kargo-takip/?takip_no=${code}`
+    case 'Surat Kargo': return `https://www.suratkargo.com.tr/kargo-takip/?takip_no=${code}`
     case 'UPS Kargo': return `https://www.ups.com.tr/kargo-takip?takipNo=${code}`
     case 'Kargoist': return `https://www.kargoist.com.tr/kargo-takip?code=${code}`
     default: return '#'
@@ -34,11 +35,11 @@ function getTrackingUrl(carrier: string, code: string): string {
 function StatusBadge({ status }: { status: Order['status'] }) {
   const map: Record<Order['status'], { label: string; cls: string; icon: string }> = {
     PENDING: { label: 'Beklemede', icon: '⏳', cls: 'bg-amber-500/15 text-amber-400 border-amber-500/30' },
-    APPROVED: { label: 'Onaylandı', icon: '✅', cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
+    APPROVED: { label: 'Onaylandi', icon: '✅', cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
     SHIPPED: { label: 'Kargoya Verildi', icon: '🚚', cls: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
     REJECTED: { label: 'Reddedildi', icon: '❌', cls: 'bg-red-500/15 text-red-400 border-red-500/30' },
-    CANCELLED: { label: 'İptal Edildi', icon: '🚫', cls: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30' },
-    CANCEL_REQUESTED: { label: 'İptal İncelemede', icon: '🔄', cls: 'bg-orange-500/15 text-orange-400 border-orange-500/30' },
+    CANCELLED: { label: 'Iptal Edildi', icon: '🚫', cls: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30' },
+    CANCEL_REQUESTED: { label: 'Iptal Incelemde', icon: '🔄', cls: 'bg-orange-500/15 text-orange-400 border-orange-500/30' },
   }
   const s = map[status] ?? { label: status, icon: '❓', cls: 'bg-zinc-700 text-zinc-300 border-zinc-600' }
   return (
@@ -48,7 +49,7 @@ function StatusBadge({ status }: { status: Order['status'] }) {
   )
 }
 
-// ── İptal Talebi Modalı ───────────────────────────────────────────
+// ── Onay Modalı ───────────────────────────────────────────────────
 function CancelRequestModal({ isOpen, onClose, onConfirm, loading }: {
   isOpen: boolean; onClose: () => void; onConfirm: () => void; loading: boolean
 }) {
@@ -60,12 +61,12 @@ function CancelRequestModal({ isOpen, onClose, onConfirm, loading }: {
         <div className="flex justify-center mb-6">
           <div className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/30 flex items-center justify-center"><span className="text-3xl">⚠️</span></div>
         </div>
-        <h3 className="text-xl font-bold text-white text-center mb-3">İptal Talebi Oluştur</h3>
-        <p className="text-zinc-400 text-center text-sm leading-relaxed mb-8">Bu sipariş zaten onaylanmış durumda. İptal talebi oluşturduğunuzda, admin tarafından incelenecektir.</p>
+        <h3 className="text-xl font-bold text-white text-center mb-3">Iptal Talebi Olustur</h3>
+        <p className="text-zinc-400 text-center text-sm leading-relaxed mb-8">Bu siparis zaten onaylanmis durumda. Iptal talebi olusturdugunuzda, admin tarafindan incelenecektir.</p>
         <div className="flex gap-3">
-          <button onClick={onClose} disabled={loading} className="flex-1 px-5 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-semibold rounded-xl transition disabled:opacity-50">Vazgeç</button>
+          <button onClick={onClose} disabled={loading} className="flex-1 px-5 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-semibold rounded-xl transition disabled:opacity-50">Vazgec</button>
           <button onClick={onConfirm} disabled={loading} className="flex-1 px-5 py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold rounded-xl transition disabled:opacity-50 flex items-center justify-center gap-2">
-            {loading ? <><span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />Gönderiliyor...</> : '📝 Evet, İptal Talebi Gönder'}
+            {loading ? <><span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />Gonderiliyor...</> : '📝 Evet, Iptal Talebi Gonder'}
           </button>
         </div>
       </div>
@@ -73,7 +74,7 @@ function CancelRequestModal({ isOpen, onClose, onConfirm, loading }: {
   )
 }
 
-// ── Direkt İptal Modalı ──────────────────────────────────────────
+// ── Direkt Iptal Modalı ──────────────────────────────────────────
 function DirectCancelModal({ isOpen, onClose, onConfirm, loading }: {
   isOpen: boolean; onClose: () => void; onConfirm: () => void; loading: boolean
 }) {
@@ -85,12 +86,12 @@ function DirectCancelModal({ isOpen, onClose, onConfirm, loading }: {
         <div className="flex justify-center mb-6">
           <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500/20 to-rose-600/20 border border-red-500/30 flex items-center justify-center"><span className="text-3xl">🚫</span></div>
         </div>
-        <h3 className="text-xl font-bold text-white text-center mb-3">Siparişi İptal Et</h3>
-        <p className="text-zinc-400 text-center text-sm leading-relaxed mb-8">Bu siparişi iptal etmek istediğinize emin misiniz? İptal işlemi geri alınamaz.</p>
+        <h3 className="text-xl font-bold text-white text-center mb-3">Siparisi Iptal Et</h3>
+        <p className="text-zinc-400 text-center text-sm leading-relaxed mb-8">Bu siparisi iptal etmek istediginize emin misiniz? Iptal islemi geri alinamaz.</p>
         <div className="flex gap-3">
-          <button onClick={onClose} disabled={loading} className="flex-1 px-5 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-semibold rounded-xl transition disabled:opacity-50">Vazgeç</button>
+          <button onClick={onClose} disabled={loading} className="flex-1 px-5 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-semibold rounded-xl transition disabled:opacity-50">Vazgec</button>
           <button onClick={onConfirm} disabled={loading} className="flex-1 px-5 py-3 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-bold rounded-xl transition disabled:opacity-50 flex items-center justify-center gap-2">
-            {loading ? <><span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />İptal ediliyor...</> : '🚫 Evet, İptal Et'}
+            {loading ? <><span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />Iptal ediliyor...</> : '🚫 Evet, Iptal Et'}
           </button>
         </div>
       </div>
@@ -113,102 +114,7 @@ function SuccessToast({ message, onDismiss }: { message: string; onDismiss: () =
   )
 }
 
-// ── Kargo Bilgisi Kartı ───────────────────────────────────────────
-function ShippingInfoCard({
-  carrier,
-  trackingCode,
-  isShipped
-}: {
-  carrier: string | null | undefined;
-  trackingCode: string | null | undefined;
-  isShipped: boolean
-}) {
-  const hasCarrier = !!carrier?.trim()
-  const hasTrackingCode = !!trackingCode?.trim()
-  const trackingUrl = isShipped && hasCarrier && hasTrackingCode
-    ? getTrackingUrl(carrier!, trackingCode!)
-    : null
-
-  // Eğer kargoya verilmediyse ama kargo bilgisi varsa bile gösterme (opsiyonel)
-  // Veya her durumda göster: isShipped kontrolünü kaldırabilirsiniz
-  if (!isShipped && !hasTrackingCode) return null
-
-  return (
-    <div className="px-5 pt-2 pb-2">
-      <div className="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/30 rounded-xl p-4">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center flex-shrink-0">
-            <span className="text-xl">📦</span>
-          </div>
-          <div>
-            <h4 className="text-sm font-bold text-blue-400">
-              {isShipped ? 'Kargonuz Yolda!' : 'Kargo Bilgileri'}
-            </h4>
-            <p className="text-xs text-zinc-400">
-              {isShipped
-                ? 'Siparişiniz kargoya verildi ve yolda.'
-                : 'Siparişiniz için kargo bilgileri hazır.'}
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-          {hasCarrier && (
-            <div className="bg-zinc-950/50 rounded-lg p-3 border border-zinc-800/50">
-              <p className="text-xs text-zinc-500 uppercase font-semibold mb-1">Kargo Firması</p>
-              <p className="text-sm font-bold text-white">{carrier}</p>
-            </div>
-          )}
-          {hasTrackingCode && (
-            <div className="bg-zinc-950/50 rounded-lg p-3 border border-zinc-800/50">
-              <p className="text-xs text-zinc-500 uppercase font-semibold mb-1">Takip Kodu</p>
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-mono font-bold text-blue-400">{trackingCode}</p>
-                <button
-                  onClick={() => navigator.clipboard.writeText(trackingCode!)}
-                  className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2 py-1 rounded-lg transition"
-                  title="Kopyala"
-                >
-                  📋
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {trackingUrl && trackingUrl !== '#' ? (
-          <a
-            href={trackingUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white text-sm font-bold rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/20"
-          >
-            <span>🚚</span> Kargo Takip Et <span className="text-blue-200">↗</span>
-          </a>
-        ) : hasTrackingCode ? (
-          <div className="w-full flex items-center justify-between px-4 py-3 bg-zinc-950/50 border border-zinc-700 rounded-xl">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-zinc-400">Takip Kodu:</span>
-              <span className="text-sm font-mono font-bold text-zinc-200">{trackingCode}</span>
-            </div>
-            <button
-              onClick={() => navigator.clipboard.writeText(trackingCode!)}
-              className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg transition"
-            >
-              📋 Kopyala
-            </button>
-          </div>
-        ) : (
-          <div className="w-full px-4 py-3 bg-zinc-950/50 border border-zinc-700 rounded-xl text-center">
-            <p className="text-xs text-zinc-500">Kargo takip bilgisi henüz girilmemiş.</p>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ── Sipariş Kartı ─────────────────────────────────────────────────
+// ── Siparis Karti ─────────────────────────────────────────────────
 interface OrderWithShipping extends Order {
   shipping_carrier?: string | null
   tracking_code?: string | null
@@ -247,25 +153,26 @@ function OrderCard({
 
   const thumbnailUrl = items[0]?.variant_image_url ?? items[0]?.variant?.color_image_url ?? items[0]?.product?.image_url ?? null
 
-  // Kargo bilgilerini güvenli şekilde al
+  // Kargo bilgilerini guvenli sekilde al
   const carrier = order.shipping_carrier?.trim() || null
   const trackingCode = order.tracking_code?.trim() || null
   const hasCarrier = !!carrier
   const hasTrackingCode = !!trackingCode
+  const trackingUrl = isShipped && hasCarrier && hasTrackingCode ? getTrackingUrl(carrier, trackingCode) : null
 
   return (
     <div className={`bg-zinc-900/80 backdrop-blur-sm border ${borderCls} rounded-2xl overflow-hidden transition-all duration-300`}>
-      {/* KAPALI BAŞLIK */}
+      {/* KAPALI BASLIK */}
       <button onClick={() => setExpanded(!expanded)} className="w-full flex items-center justify-between p-5 hover:bg-zinc-800/40 transition text-left group">
         <div className="flex items-center gap-4 flex-1 min-w-0">
           {thumbnailUrl ? (
-            <img src={thumbnailUrl} alt="Sipariş" className="w-14 h-14 rounded-xl object-cover flex-shrink-0 border border-zinc-700 group-hover:border-pink-500/30 transition" />
+            <img src={thumbnailUrl} alt="Siparis" className="w-14 h-14 rounded-xl object-cover flex-shrink-0 border border-zinc-700 group-hover:border-pink-500/30 transition" />
           ) : (
             <div className="w-14 h-14 rounded-xl bg-zinc-800 flex items-center justify-center flex-shrink-0 border border-zinc-700"><span className="text-2xl">📦</span></div>
           )}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <p className="text-base font-bold text-white">Sipariş #{order.id}</p>
+              <p className="text-base font-bold text-white">Siparis #{order.id}</p>
               <StatusBadge status={order.status} />
               {/* KAPALI durumda SHIPPED ise mini kargo rozet */}
               {isShipped && hasCarrier && (
@@ -273,17 +180,11 @@ function OrderCard({
                   🚚 {carrier}
                 </span>
               )}
-              {/* KAPALI durumda takip kodu varsa göster */}
-              {hasTrackingCode && (
-                <span className="inline-flex items-center gap-1 text-xs font-mono font-bold px-2 py-1 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
-                  #{trackingCode}
-                </span>
-              )}
             </div>
             <div className="flex items-center gap-3 text-xs text-zinc-500">
               <span>📅 {new Date(order.created_at).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
               <span>•</span>
-              <span>{items.length} ürün</span>
+              <span>{items.length} urun</span>
               {isShipped && hasTrackingCode && (
                 <>
                   <span>•</span>
@@ -301,13 +202,13 @@ function OrderCard({
         </div>
       </button>
 
-      {/* AÇIK DETAY */}
+      {/* ACIK DETAY */}
       {expanded && (
         <div className="border-t border-zinc-800">
-          {/* Müşteri Bilgileri */}
+          {/* Musteri Bilgileri */}
           <div className="px-5 pt-4 pb-2">
             <div className="bg-zinc-950/60 rounded-xl border border-zinc-800/50 p-4 space-y-2">
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">Sipariş Bilgileri</p>
+              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">Siparis Bilgileri</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div className="flex items-center gap-2 text-sm"><span className="text-zinc-500">👤</span><span className="text-zinc-300 font-medium">{order.customer_name}</span></div>
                 {order.customer_phone && <div className="flex items-center gap-2 text-sm"><span className="text-zinc-500">📞</span><span className="text-zinc-300">{order.customer_phone}</span></div>}
@@ -317,14 +218,50 @@ function OrderCard({
             </div>
           </div>
 
-          {/* KARGO DURUMU BANNERI - Her durumda göster */}
-          <ShippingInfoCard
-            carrier={order.shipping_carrier}
-            trackingCode={order.tracking_code}
-            isShipped={isShipped}
-          />
+          {/* KARGO DURUMU BANNERI */}
+          {isShipped && (
+            <div className="px-5 pt-2 pb-2">
+              <div className="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/30 rounded-xl p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center flex-shrink-0"><span className="text-xl">📦</span></div>
+                  <div>
+                    <h4 className="text-sm font-bold text-blue-400">Kargonuz Yolda!</h4>
+                    <p className="text-xs text-zinc-400">Siparisiniz kargoya verildi ve yolda.</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                  {hasCarrier && (
+                    <div className="bg-zinc-950/50 rounded-lg p-3 border border-zinc-800/50">
+                      <p className="text-xs text-zinc-500 uppercase font-semibold mb-1">Kargo Firmasi</p>
+                      <p className="text-sm font-bold text-white">{carrier}</p>
+                    </div>
+                  )}
+                  {hasTrackingCode && (
+                    <div className="bg-zinc-950/50 rounded-lg p-3 border border-zinc-800/50">
+                      <p className="text-xs text-zinc-500 uppercase font-semibold mb-1">Takip Kodu</p>
+                      <p className="text-sm font-mono font-bold text-blue-400">{trackingCode}</p>
+                    </div>
+                  )}
+                </div>
+                {trackingUrl && trackingUrl !== '#' ? (
+                  <a href={trackingUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white text-sm font-bold rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/20">
+                    <span>🚚</span> Kargo Takip Et <span className="text-blue-200">↗</span>
+                  </a>
+                ) : hasTrackingCode ? (
+                  <div className="w-full flex items-center justify-between px-4 py-3 bg-zinc-950/50 border border-zinc-700 rounded-xl">
+                    <div className="flex items-center gap-2"><span className="text-sm text-zinc-400">Takip Kodu:</span><span className="text-sm font-mono font-bold text-zinc-200">{trackingCode}</span></div>
+                    <button onClick={() => navigator.clipboard.writeText(trackingCode)} className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg transition">📋 Kopyala</button>
+                  </div>
+                ) : (
+                  <div className="w-full px-4 py-3 bg-zinc-950/50 border border-zinc-700 rounded-xl text-center">
+                    <p className="text-xs text-zinc-500">Kargo takip bilgisi henuz girilmemis.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
-          {/* Ürün Listesi */}
+          {/* Urun Listesi */}
           <div className="px-5 py-3">
             <div className="bg-zinc-950/80 rounded-xl border border-zinc-800/50 divide-y divide-zinc-800/50">
               {items.map((item) => {
@@ -332,9 +269,9 @@ function OrderCard({
                 const imgUrl = item.variant_image_url ?? item.variant?.color_image_url ?? p?.image_url ?? null
                 return (
                   <div key={item.id} className="flex items-center gap-4 p-4">
-                    {imgUrl ? <img src={imgUrl} alt={p?.title || 'Ürün'} className="w-16 h-16 rounded-xl object-cover flex-shrink-0 border border-zinc-700" /> : <div className="w-16 h-16 rounded-xl bg-zinc-800 flex items-center justify-center flex-shrink-0 border border-zinc-700"><span className="text-2xl">🖼️</span></div>}
+                    {imgUrl ? <img src={imgUrl} alt={p?.title || 'Urun'} className="w-16 h-16 rounded-xl object-cover flex-shrink-0 border border-zinc-700" /> : <div className="w-16 h-16 rounded-xl bg-zinc-800 flex items-center justify-center flex-shrink-0 border border-zinc-700"><span className="text-2xl">🖼️</span></div>}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white line-clamp-1">{p?.title ?? 'Ürün'}</p>
+                      <p className="text-sm font-semibold text-white line-clamp-1">{p?.title ?? 'Urun'}</p>
                       {item.variant_name && <p className="text-xs text-violet-400 font-medium mt-0.5">{item.variant_name}</p>}
                       <div className="flex gap-1.5 flex-wrap mt-1.5">
                         {item.variant?.color && <span className="text-xs text-zinc-400 bg-zinc-800/80 px-2.5 py-0.5 rounded-md border border-zinc-700/50">🎨 {item.variant.color}</span>}
@@ -354,25 +291,17 @@ function OrderCard({
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-zinc-950/50 rounded-xl border border-zinc-800/50 px-5 py-4 gap-4">
               <div>
                 {order.shipping_price != null && order.shipping_price > 0 && <p className="text-xs text-zinc-500 mb-0.5">🚚 Kargo: <span className="text-zinc-300 font-medium">{order.shipping_price.toFixed(2)} ₺</span></p>}
-                {order.shipping_price != null && order.shipping_price === 0 && <p className="text-xs text-emerald-400 mb-0.5">🚚 Kargo: Ücretsiz 🎉</p>}
-                <p className="text-xs text-zinc-500 font-medium uppercase mb-1">Sipariş Toplamı</p>
+                {order.shipping_price != null && order.shipping_price === 0 && <p className="text-xs text-emerald-400 mb-0.5">🚚 Kargo: Ucretsiz 🎉</p>}
+                <p className="text-xs text-zinc-500 font-medium uppercase mb-1">Siparis Toplami</p>
                 <p className="text-2xl font-black bg-gradient-to-r from-pink-400 to-violet-400 bg-clip-text text-transparent">{order.total_price.toFixed(2)} ₺</p>
               </div>
-              {isPending && <button onClick={(e) => { e.stopPropagation(); onDirectCancel(order.id) }} disabled={cancelling} className="px-5 py-2.5 bg-gradient-to-r from-red-500/10 to-rose-500/10 hover:from-red-500/20 hover:to-rose-500/20 border border-red-500/40 hover:border-red-500 text-red-400 hover:text-red-300 text-sm font-bold rounded-xl transition-all duration-200 disabled:opacity-50 flex items-center gap-2"><span>🚫</span> Siparişi İptal Et</button>}
-              {isApproved && <button onClick={(e) => { e.stopPropagation(); onCancelRequest(order.id) }} disabled={cancelling} className="px-5 py-2.5 bg-gradient-to-r from-orange-500/10 to-amber-500/10 hover:from-orange-500/20 hover:to-amber-500/20 border border-orange-500/40 hover:border-orange-500 text-orange-400 hover:text-orange-300 text-sm font-bold rounded-xl transition-all duration-200 disabled:opacity-50 flex items-center gap-2"><span>📝</span> İptal Talebi Oluştur</button>}
-              {isShipped && hasTrackingCode && (
-                <a
-                  href={getTrackingUrl(carrier!, trackingCode!)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white text-sm font-bold rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/20 flex items-center gap-2"
-                >
-                  <span>📦</span> Kargo Takip Et
-                </a>
+              {isPending && <button onClick={(e) => { e.stopPropagation(); onDirectCancel(order.id) }} disabled={cancelling} className="px-5 py-2.5 bg-gradient-to-r from-red-500/10 to-rose-500/10 hover:from-red-500/20 hover:to-rose-500/20 border border-red-500/40 hover:border-red-500 text-red-400 hover:text-red-300 text-sm font-bold rounded-xl transition-all duration-200 disabled:opacity-50 flex items-center gap-2"><span>🚫</span> Siparisi Iptal Et</button>}
+              {isApproved && <button onClick={(e) => { e.stopPropagation(); onCancelRequest(order.id) }} disabled={cancelling} className="px-5 py-2.5 bg-gradient-to-r from-orange-500/10 to-amber-500/10 hover:from-orange-500/20 hover:to-amber-500/20 border border-orange-500/40 hover:border-orange-500 text-orange-400 hover:text-orange-300 text-sm font-bold rounded-xl transition-all duration-200 disabled:opacity-50 flex items-center gap-2"><span>📝</span> Iptal Talebi Olustur</button>}
+              {isShipped && trackingUrl && trackingUrl !== '#' && (
+                <a href={trackingUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white text-sm font-bold rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/20 flex items-center gap-2"><span>📦</span> Kargo Takip Et</a>
               )}
-              {isCancelRequested && <span className="px-5 py-2.5 bg-orange-500/10 border border-orange-500/30 text-orange-400 text-sm font-bold rounded-xl flex items-center gap-2 cursor-default"><span className="w-4 h-4 rounded-full border-2 border-orange-400 border-t-transparent animate-spin" />İncelemede ⏳</span>}
-              {isCancelled && <span className="px-4 py-2 bg-zinc-800/50 border border-zinc-700 text-zinc-500 text-sm font-bold rounded-xl cursor-default">İptal Edildi ❌</span>}
+              {isCancelRequested && <span className="px-5 py-2.5 bg-orange-500/10 border border-orange-500/30 text-orange-400 text-sm font-bold rounded-xl flex items-center gap-2 cursor-default"><span className="w-4 h-4 rounded-full border-2 border-orange-400 border-t-transparent animate-spin" />Incelemde ⏳</span>}
+              {isCancelled && <span className="px-4 py-2 bg-zinc-800/50 border border-zinc-700 text-zinc-500 text-sm font-bold rounded-xl cursor-default">Iptal Edildi ❌</span>}
             </div>
           </div>
         </div>
@@ -409,17 +338,15 @@ export default function ProfilePage() {
         if (!user) { router.push('/auth/login?returnTo=/profile'); return }
         setUser(user)
 
-        // ✅ DÜZELTME: .select('*') kullanarak tüm sütunları tip-güvenli çek
+        // .select() with NO arguments = ALL columns (Supabase docs)
         const { data: ordersData, error: ordersError } = await supabase
           .from('orders')
-          .select('*')
+          .select()
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
 
         if (ordersError) {
           console.error('Orders fetch error:', ordersError)
-          setLoading(false)
-          return
         }
 
         if (ordersData && ordersData.length > 0) {
@@ -428,27 +355,10 @@ export default function ProfilePage() {
           console.log('First order shipping_carrier:', (ordersData[0] as any).shipping_carrier)
           console.log('First order tracking_code:', (ordersData[0] as any).tracking_code)
 
-          // ✅ DÜZELTME: Açık tip dönüşümü ile kargo alanlarını garantile
-          const typedOrders: OrderWithShipping[] = ordersData.map((o: any) => ({
-            ...o,
-            shipping_carrier: o.shipping_carrier ?? null,
-            tracking_code: o.tracking_code ?? null,
-          }))
-          setOrders(typedOrders)
+          setOrders(ordersData as OrderWithShipping[])
 
           const orderIds = ordersData.map((o: any) => o.id)
-
-          // ✅ DÜZELTME: order_items sorgusunu da tip-güvenli hale getir
-          const { data: itemsData, error: itemsError } = await supabase
-            .from('order_items')
-            .select('*')
-            .in('order_id', orderIds)
-
-          if (itemsError) {
-            console.error('Order items fetch error:', itemsError)
-            setLoading(false)
-            return
-          }
+          const { data: itemsData } = await supabase.from('order_items').select('*').in('order_id', orderIds)
 
           if (itemsData && itemsData.length > 0) {
             const productIds = [...new Set(itemsData.map((i: any) => i.product_id))]
@@ -456,9 +366,7 @@ export default function ProfilePage() {
 
             const [{ data: products }, { data: variants }] = await Promise.all([
               supabase.from('products').select('*').in('id', productIds),
-              variantIds.length > 0
-                ? supabase.from('product_variants').select('*').in('id', variantIds)
-                : Promise.resolve({ data: [] as ProductVariant[] }),
+              variantIds.length > 0 ? supabase.from('product_variants').select('*').in('id', variantIds) : Promise.resolve({ data: [] as ProductVariant[] }),
             ])
 
             const richItems: RichOrderItem[] = itemsData.map((item: any) => ({
@@ -472,28 +380,17 @@ export default function ProfilePage() {
 
         const savedAddress = localStorage.getItem('user_address')
         if (savedAddress) setAddress(savedAddress)
-      } catch (error) {
-        console.error('Profil yükleme hatası:', error)
-      } finally {
-        setLoading(false)
-      }
+      } catch (error) { console.error('Profil yukleme hatasi:', error) }
+      finally { setLoading(false) }
     }
     loadUserData()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSaveAddress(e: React.FormEvent) {
     e.preventDefault(); setSavingAddress(true)
-    try {
-      if (address.trim()) {
-        localStorage.setItem('user_address', address);
-        setAddressSaved(true);
-        setTimeout(() => setAddressSaved(false), 3000)
-      }
-    } catch (error) {
-      console.error('Adres kaydedilirken hata:', error)
-    } finally {
-      setSavingAddress(false)
-    }
+    try { if (address.trim()) { localStorage.setItem('user_address', address); setAddressSaved(true); setTimeout(() => setAddressSaved(false), 3000) } }
+    catch (error) { console.error('Adres kaydedilirken hata:', error) }
+    finally { setSavingAddress(false) }
   }
 
   async function handleConfirmDirectCancel() {
@@ -502,16 +399,9 @@ export default function ProfilePage() {
     setCancelling((p) => ({ ...p, [orderId]: true }))
     try {
       const { error } = await supabase.from('orders').update({ status: 'CANCELLED' }).eq('id', orderId)
-      if (!error) {
-        setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'CANCELLED' as const } : o));
-        setDirectCancelOrderId(null);
-        setToastMessage('Siparişiniz başarıyla iptal edildi.')
-      } else {
-        alert(`Hata: ${error.message}`)
-      }
-    } finally {
-      setCancelling((p) => ({ ...p, [orderId]: false }))
-    }
+      if (!error) { setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'CANCELLED' as const } : o)); setDirectCancelOrderId(null); setToastMessage('Siparisiniz basariyla iptal edildi.') }
+      else { alert(`Hata: ${error.message}`) }
+    } finally { setCancelling((p) => ({ ...p, [orderId]: false })) }
   }
 
   async function handleConfirmCancelRequest() {
@@ -520,71 +410,37 @@ export default function ProfilePage() {
     setCancelling((p) => ({ ...p, [orderId]: true }))
     try {
       const { error } = await supabase.from('orders').update({ status: 'CANCEL_REQUESTED' }).eq('id', orderId)
-      if (!error) {
-        setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'CANCEL_REQUESTED' as const } : o));
-        setCancelRequestOrderId(null);
-        setToastMessage('İptal talebiniz admine iletildi. En kısa sürede değerlendirilecektir.')
-      } else {
-        alert(`Hata: ${error.message}`)
-      }
-    } finally {
-      setCancelling((p) => ({ ...p, [orderId]: false }))
-    }
+      if (!error) { setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'CANCEL_REQUESTED' as const } : o)); setCancelRequestOrderId(null); setToastMessage('Iptal talebiniz admine iletildi. En kisa surede degerlendirilecektir.') }
+      else { alert(`Hata: ${error.message}`) }
+    } finally { setCancelling((p) => ({ ...p, [orderId]: false })) }
   }
 
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    router.push('/')
-  }
+  async function handleLogout() { await supabase.auth.signOut(); router.push('/') }
 
   if (loading) return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-950 to-black flex flex-col">
-      <Navbar />
-      <div className="flex-1 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 rounded-full border-4 border-pink-500 border-t-transparent animate-spin" />
-          <p className="text-zinc-400 text-sm">Profil yükleniyor...</p>
-        </div>
-      </div>
+      <Navbar /><div className="flex-1 flex items-center justify-center"><div className="flex flex-col items-center gap-4"><div className="w-10 h-10 rounded-full border-4 border-pink-500 border-t-transparent animate-spin" /><p className="text-zinc-400 text-sm">Profil yukleniyor...</p></div></div>
     </div>
   )
 
   if (!user) return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-950 to-black text-white flex items-center justify-center">
-      <div className="text-center">
-        <p className="text-xl font-bold mb-4">Giriş yapmalısınız</p>
-        <Link href="/auth/login" className="px-6 py-3 bg-pink-500 hover:bg-pink-600 rounded-lg transition">Giriş Yap</Link>
-      </div>
+      <div className="text-center"><p className="text-xl font-bold mb-4">Giris yapmalisiniz</p><Link href="/auth/login" className="px-6 py-3 bg-pink-500 hover:bg-pink-600 rounded-lg transition">Giris Yap</Link></div>
     </div>
   )
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-950 to-black text-zinc-100 flex flex-col">
       <Navbar />
-      <DirectCancelModal
-        isOpen={directCancelOrderId !== null}
-        onClose={() => setDirectCancelOrderId(null)}
-        onConfirm={handleConfirmDirectCancel}
-        loading={directCancelOrderId !== null && !!cancelling[directCancelOrderId]}
-      />
-      <CancelRequestModal
-        isOpen={cancelRequestOrderId !== null}
-        onClose={() => setCancelRequestOrderId(null)}
-        onConfirm={handleConfirmCancelRequest}
-        loading={cancelRequestOrderId !== null && !!cancelling[cancelRequestOrderId]}
-      />
+      <DirectCancelModal isOpen={directCancelOrderId !== null} onClose={() => setDirectCancelOrderId(null)} onConfirm={handleConfirmDirectCancel} loading={directCancelOrderId !== null && !!cancelling[directCancelOrderId]} />
+      <CancelRequestModal isOpen={cancelRequestOrderId !== null} onClose={() => setCancelRequestOrderId(null)} onConfirm={handleConfirmCancelRequest} loading={cancelRequestOrderId !== null && !!cancelling[cancelRequestOrderId]} />
       {toastMessage && <SuccessToast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
 
       <div className="bg-zinc-900 border-b border-zinc-800 py-8">
         <div className="max-w-4xl mx-auto px-4">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 to-violet-500 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-pink-500/30">
-              {user.email?.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold">Profil Sayfası</h1>
-              <p className="text-zinc-400 text-sm">{user.email}</p>
-            </div>
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 to-violet-500 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-pink-500/30">{user.email?.charAt(0).toUpperCase()}</div>
+            <div><h1 className="text-3xl font-bold">Profil Sayfasi</h1><p className="text-zinc-400 text-sm">{user.email}</p></div>
           </div>
         </div>
       </div>
@@ -592,109 +448,42 @@ export default function ProfilePage() {
       <main className="max-w-4xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="md:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <span className="text-2xl">👤</span>
-              <h2 className="text-xl font-bold">Genel Bilgiler</h2>
-            </div>
+            <div className="flex items-center gap-3 mb-6"><span className="text-2xl">👤</span><h2 className="text-xl font-bold">Genel Bilgiler</h2></div>
             <div className="space-y-4">
-              <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
-                <label className="text-xs font-semibold text-zinc-400 uppercase">E-posta Adresi</label>
-                <p className="text-lg font-semibold text-white mt-2">{user.email}</p>
-              </div>
-              <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
-                <label className="text-xs font-semibold text-zinc-400 uppercase">Hesap Oluşturma Tarihi</label>
-                <p className="text-lg font-semibold text-white mt-2">
-                  {new Date(user.created_at).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}
-                </p>
-              </div>
-              <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
-                <label className="text-xs font-semibold text-zinc-400 uppercase">Kullanıcı ID</label>
-                <p className="text-sm font-mono text-zinc-300 mt-2 truncate">{user.id}</p>
-              </div>
+              <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800"><label className="text-xs font-semibold text-zinc-400 uppercase">E-posta Adresi</label><p className="text-lg font-semibold text-white mt-2">{user.email}</p></div>
+              <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800"><label className="text-xs font-semibold text-zinc-400 uppercase">Hesap Olusturma Tarihi</label><p className="text-lg font-semibold text-white mt-2">{new Date(user.created_at).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}</p></div>
+              <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800"><label className="text-xs font-semibold text-zinc-400 uppercase">Kullanici ID</label><p className="text-sm font-mono text-zinc-300 mt-2 truncate">{user.id}</p></div>
             </div>
           </div>
 
           <div className="md:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <span className="text-2xl">🏠</span>
-              <h2 className="text-xl font-bold">Adres Bilgilerim</h2>
-            </div>
+            <div className="flex items-center gap-3 mb-6"><span className="text-2xl">🏠</span><h2 className="text-xl font-bold">Adres Bilgilerim</h2></div>
             <form onSubmit={handleSaveAddress} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-400 uppercase mb-2">Teslimat Adresi</label>
-                <textarea
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Şehir, sokak, bina no... vb."
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-pink-500 transition resize-none"
-                  rows={4}
-                />
-              </div>
-              {addressSaved && (
-                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-center gap-2">
-                  <span>✅</span>
-                  <p className="text-sm text-emerald-400">Adres başarıyla kaydedildi!</p>
-                </div>
-              )}
-              <button
-                type="submit"
-                disabled={savingAddress}
-                className="w-full bg-gradient-to-r from-pink-500 to-violet-600 hover:opacity-90 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition"
-              >
-                {savingAddress ? 'Kaydediliyor...' : '💾 Adresi Kaydet'}
-              </button>
+              <div><label className="block text-xs font-semibold text-zinc-400 uppercase mb-2">Teslimat Adresi</label><textarea value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Sehir, sokak, bina no... vb." className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-pink-500 transition resize-none" rows={4} /></div>
+              {addressSaved && <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-center gap-2"><span>✅</span><p className="text-sm text-emerald-400">Adres basariyla kaydedildi!</p></div>}
+              <button type="submit" disabled={savingAddress} className="w-full bg-gradient-to-r from-pink-500 to-violet-600 hover:opacity-90 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition">{savingAddress ? 'Kaydediliyor...' : '💾 Adresi Kaydet'}</button>
             </form>
           </div>
 
           <div className="md:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl p-8">
             <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">📦</span>
-                <h2 className="text-xl font-bold">Siparişlerim</h2>
-              </div>
-              {orders.length > 0 && (
-                <span className="text-xs font-bold bg-pink-500/10 text-pink-400 border border-pink-500/20 px-3 py-1.5 rounded-full">
-                  {orders.length} sipariş
-                </span>
-              )}
+              <div className="flex items-center gap-3"><span className="text-2xl">📦</span><h2 className="text-xl font-bold">Siparislerim</h2></div>
+              {orders.length > 0 && <span className="text-xs font-bold bg-pink-500/10 text-pink-400 border border-pink-500/20 px-3 py-1.5 rounded-full">{orders.length} siparis</span>}
             </div>
 
             {orders.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-zinc-800 flex items-center justify-center">
-                  <span className="text-4xl">📭</span>
-                </div>
-                <p className="text-zinc-400 mb-6 text-lg">Henüz sipariş vermemişsiniz</p>
-                <Link
-                  href="/products"
-                  className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-pink-500 to-violet-600 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg shadow-pink-500/20"
-                >
-                  🛍️ Alışverişe Başla
-                </Link>
-              </div>
+              <div className="text-center py-16"><div className="w-20 h-20 mx-auto mb-4 rounded-full bg-zinc-800 flex items-center justify-center"><span className="text-4xl">📭</span></div><p className="text-zinc-400 mb-6 text-lg">Henuz siparis vermemissiniz</p><Link href="/products" className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-pink-500 to-violet-600 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg shadow-pink-500/20">🛍️ Alisverise Basla</Link></div>
             ) : (
               <div className="space-y-4">
                 {orders.map((order) => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    items={orderItems.filter((item) => item.order_id === order.id)}
-                    onDirectCancel={(id) => setDirectCancelOrderId(id)}
-                    onCancelRequest={(id) => setCancelRequestOrderId(id)}
-                    cancelling={!!cancelling[order.id]}
-                  />
+                  <OrderCard key={order.id} order={order} items={orderItems.filter((item) => item.order_id === order.id)} onDirectCancel={(id) => setDirectCancelOrderId(id)} onCancelRequest={(id) => setCancelRequestOrderId(id)} cancelling={!!cancelling[order.id]} />
                 ))}
               </div>
             )}
           </div>
 
           <div className="md:col-span-2">
-            <button
-              onClick={handleLogout}
-              className="w-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500 text-red-400 hover:text-red-300 font-bold py-4 rounded-xl transition duration-200 text-lg flex items-center justify-center gap-2"
-            >
-              <span>🚪</span> Çıkış Yap
-            </button>
+            <button onClick={handleLogout} className="w-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500 text-red-400 hover:text-red-300 font-bold py-4 rounded-xl transition duration-200 text-lg flex items-center justify-center gap-2"><span>🚪</span> Cikis Yap</button>
           </div>
         </div>
       </main>
