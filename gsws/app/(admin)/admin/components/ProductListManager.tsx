@@ -19,6 +19,7 @@ interface NewVariantRow {
   size_or_dimension: string
   stock: number
   additional_price: number
+  cost_price: number
 }
 
 interface NewProductForm {
@@ -51,6 +52,7 @@ function newVariantRow(): NewVariantRow {
     size_or_dimension: '',
     stock: 0,
     additional_price: 0,
+    cost_price: 0,
   }
 }
 
@@ -71,8 +73,8 @@ export default function ProductListManager() {
   // ── Inline güncelleme ─────────────────────────────────────────────
   // product inline: { [productId]: { price, stock } }
   const [inlineProduct, setInlineProduct] = useState<Record<number, { price: string; stock: string }>>({})
-  // variant inline: { [variantId]: { stock, additional_price } }
-  const [inlineVariant, setInlineVariant] = useState<Record<number, { stock: string; additional_price: string }>>({})
+  // variant inline: { [variantId]: { stock, additional_price, cost_price } }
+  const [inlineVariant, setInlineVariant] = useState<Record<number, { stock: string; additional_price: string; cost_price: string }>>({})
   const [savingProduct, setSavingProduct] = useState<Record<number, boolean>>({})
   const [savingVariant, setSavingVariant] = useState<Record<number, boolean>>({})
 
@@ -175,10 +177,10 @@ export default function ProductListManager() {
   // INLINE VARYANT GÜNCELLEME
   // ─────────────────────────────────────────────────────────────────
   function getInlineVariant(v: ProductVariant) {
-    return inlineVariant[v.id] ?? { stock: String(v.stock), additional_price: String(v.additional_price) }
+    return inlineVariant[v.id] ?? { stock: String(v.stock), additional_price: String(v.additional_price), cost_price: String(v.cost_price ?? 0) }
   }
 
-  function setInlineVariantField(id: number, field: 'stock' | 'additional_price', val: string) {
+  function setInlineVariantField(id: number, field: 'stock' | 'additional_price' | 'cost_price', val: string) {
     setInlineVariant((prev) => ({
       ...prev,
       [id]: { ...(prev[id] ?? {}), [field]: val },
@@ -189,14 +191,15 @@ export default function ProductListManager() {
     const vals = getInlineVariant(v)
     const stock = parseInt(vals.stock)
     const additional_price = parseFloat(vals.additional_price)
+    const cost_price = parseFloat(vals.cost_price) || 0
     if (isNaN(stock) || isNaN(additional_price)) return showToast('Geçersiz değer', false)
     setSavingVariant((prev) => ({ ...prev, [v.id]: true }))
-    const { error } = await supabase.from('product_variants').update({ stock, additional_price }).eq('id', v.id)
+    const { error } = await supabase.from('product_variants').update({ stock, additional_price, cost_price }).eq('id', v.id)
     setSavingVariant((prev) => ({ ...prev, [v.id]: false }))
     if (error) return showToast(`Hata: ${error.message}`, false)
     setProducts((prev) => prev.map((p) =>
       p.id === productId
-        ? { ...p, variants: p.variants.map((x) => x.id === v.id ? { ...x, stock, additional_price } : x) }
+        ? { ...p, variants: p.variants.map((x) => x.id === v.id ? { ...x, stock, additional_price, cost_price } : x) }
         : p
     ))
     showToast('✅ Varyant güncellendi')
@@ -255,6 +258,7 @@ export default function ProductListManager() {
           size_or_dimension: v.size_or_dimension.trim() || null,
           stock: Math.max(0, v.stock),
           additional_price: Math.max(0, v.additional_price),
+          cost_price: Math.max(0, v.cost_price) || 0,
         }))
         const { error: varErr } = await supabase.from('product_variants').insert(variantRows)
         if (varErr) console.warn('Varyant ekleme kısmen başarısız:', varErr.message)
@@ -505,19 +509,20 @@ export default function ProductListManager() {
                       </p>
                       <div className="space-y-2">
                         {/* Varyant Header */}
-                        <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-zinc-600 uppercase px-2 mb-1">
+                        <div className="grid grid-cols-14 gap-2 text-xs font-semibold text-zinc-600 uppercase px-2 mb-1" style={{ gridTemplateColumns: 'repeat(14, minmax(0, 1fr))' }}>
                           <div className="col-span-1">Resim</div>
                           <div className="col-span-2">Renk</div>
                           <div className="col-span-2">Beden/Boyut</div>
                           <div className="col-span-2">Stok</div>
                           <div className="col-span-2">+Fiyat (₺)</div>
+                          <div className="col-span-2">Maliyet (₺)</div>
                           <div className="col-span-3 text-right">Kaydet</div>
                         </div>
 
                         {product.variants.map((v) => {
                           const vInline = getInlineVariant(v)
                           return (
-                            <div key={v.id} className="grid grid-cols-12 gap-2 items-center bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl px-3 py-2.5 transition">
+                            <div key={v.id} className="grid gap-2 items-center bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl px-3 py-2.5 transition" style={{ gridTemplateColumns: 'repeat(14, minmax(0, 1fr))' }}>
                               {/* Varyant Resim */}
                               <div className="col-span-1">
                                 {v.color_image_url ? (
@@ -567,6 +572,19 @@ export default function ProductListManager() {
                                   onChange={(e) => setInlineVariantField(v.id, 'additional_price', e.target.value)}
                                   min="0"
                                   className="w-20 bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-pink-500 transition"
+                                />
+                              </div>
+
+                              {/* Maliyet (Geliş Fiyatı) Inline */}
+                              <div className="col-span-2">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={vInline.cost_price}
+                                  onChange={(e) => setInlineVariantField(v.id, 'cost_price', e.target.value)}
+                                  min="0"
+                                  placeholder="0.00"
+                                  className="w-20 bg-zinc-950 border border-amber-600/40 rounded-lg px-2 py-1.5 text-xs text-amber-300 focus:outline-none focus:border-amber-500 transition placeholder-zinc-700"
                                 />
                               </div>
 
@@ -787,19 +805,20 @@ export default function ProductListManager() {
                 </div>
 
                 {/* Varyant Header */}
-                <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-zinc-600 uppercase px-1">
-                  <div className="col-span-2">Renk</div>
-                  <div className="col-span-3">Renk Resim URL</div>
-                  <div className="col-span-2">Beden/Boyut</div>
-                  <div className="col-span-2">Stok</div>
-                  <div className="col-span-2">+Fiyat</div>
-                  <div className="col-span-1" />
+                <div className="grid gap-2 text-xs font-semibold text-zinc-600 uppercase px-1" style={{ gridTemplateColumns: '2fr 2.5fr 1.5fr 1.2fr 1.2fr 1.2fr 0.5fr' }}>
+                  <div>Renk</div>
+                  <div>Renk Resim URL</div>
+                  <div>Beden/Boyut</div>
+                  <div>Stok</div>
+                  <div>+Fiyat</div>
+                  <div>Maliyet</div>
+                  <div />
                 </div>
 
                 <div className="space-y-2">
                   {addVariants.map((v, idx) => (
-                    <div key={v.localId} className="grid grid-cols-12 gap-2 items-center bg-zinc-900 border border-zinc-700 rounded-xl p-2.5">
-                      <div className="col-span-2">
+                    <div key={v.localId} className="grid gap-2 items-center bg-zinc-900 border border-zinc-700 rounded-xl p-2.5" style={{ gridTemplateColumns: '2fr 2.5fr 1.5fr 1.2fr 1.2fr 1.2fr 0.5fr' }}>
+                      <div>
                         <input
                           type="text"
                           value={v.color}
@@ -808,7 +827,7 @@ export default function ProductListManager() {
                           className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-pink-500 transition"
                         />
                       </div>
-                      <div className="col-span-3">
+                      <div>
                         <input
                           type="text"
                           value={v.color_image_url}
@@ -817,7 +836,7 @@ export default function ProductListManager() {
                           className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-pink-500 transition"
                         />
                       </div>
-                      <div className="col-span-2">
+                      <div>
                         <input
                           type="text"
                           value={v.size_or_dimension}
@@ -826,7 +845,7 @@ export default function ProductListManager() {
                           className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-pink-500 transition"
                         />
                       </div>
-                      <div className="col-span-2">
+                      <div>
                         <input
                           type="number"
                           value={v.stock}
@@ -835,7 +854,7 @@ export default function ProductListManager() {
                           className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-pink-500 transition"
                         />
                       </div>
-                      <div className="col-span-2">
+                      <div>
                         <input
                           type="number"
                           step="0.01"
@@ -845,7 +864,18 @@ export default function ProductListManager() {
                           className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-pink-500 transition"
                         />
                       </div>
-                      <div className="col-span-1 flex justify-center">
+                      <div>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={v.cost_price}
+                          onChange={(e) => setAddVariants((prev) => prev.map((x, i) => i === idx ? { ...x, cost_price: parseFloat(e.target.value) || 0 } : x))}
+                          min="0"
+                          placeholder="0.00"
+                          className="w-full bg-zinc-950 border border-amber-600/40 rounded-lg px-2 py-1.5 text-xs text-amber-300 focus:outline-none focus:border-amber-500 transition placeholder-zinc-700"
+                        />
+                      </div>
+                      <div className="flex justify-center">
                         <button
                           type="button"
                           onClick={() => setAddVariants((prev) => prev.filter((_, i) => i !== idx))}

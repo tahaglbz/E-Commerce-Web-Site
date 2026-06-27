@@ -24,6 +24,7 @@ import OrderManagement from './components/OrderManagement'
 import AbandonedCarts from './components/AbandonedCarts'
 import CouponManager from './components/CouponManager'
 import ProductListManager from './components/ProductListManager'
+import AccountingAnalytics from './components/AccountingAnalytics'
 
 // ─────────────────────────────────────────────────────────────────
 // KATEGORİ SINIFLANDIRMA
@@ -368,7 +369,7 @@ function DimensionVariantForm({ rows, onChange }: DimensionVariantFormProps) {
 // ─────────────────────────────────────────────────────────────────
 // MAIN ADMIN DASHBOARD
 // ─────────────────────────────────────────────────────────────────
-type MainTab = 'orders' | 'abandoned-carts' | 'coupons' | 'product-manager' | 'products' | 'add-product'
+type MainTab = 'orders' | 'abandoned-carts' | 'coupons' | 'product-manager' | 'products' | 'add-product' | 'accounting'
 // GUNCELLENDI: 'shipped' eklendi
 type OrderSubTab = 'pending' | 'approved' | 'cancel-requests' | 'shipped'
 
@@ -740,6 +741,7 @@ export default function AdminDashboard() {
     { id: 'product-manager' as const, label: '📦 Urun / Kategori Yonetimi', count: products.length },
     { id: 'products' as const, label: '🖼️ Vitrin (Grid)', count: 0 },
     { id: 'add-product' as const, label: '➕ Urun Ekle (Dosya)', count: 0 },
+    { id: 'accounting' as const, label: '📊 Muhasebe & Stok Analizi', count: 0 },
   ]
 
   // ─────────────────────────────────────────────────────────────────
@@ -992,6 +994,9 @@ export default function AdminDashboard() {
                 </div>
               </div>
             )}
+
+            {/* ── MUHASEBE & STOK ANALİZİ ── */}
+            {activeTab === 'accounting' && <AccountingAnalytics />}
           </>
         )}
       </main>

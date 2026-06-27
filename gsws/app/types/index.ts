@@ -45,6 +45,7 @@ export interface ProductVariant {
   size_or_dimension: string | null    // Beden (S,M,L,XL) veya boyut (A3,A4), null olabilir
   stock: number
   additional_price: number            // Ana fiyata eklenen fiyat farkı (0 = fark yok)
+  cost_price?: number | null          // Geliş fiyatı / maliyet (muhasebe için)
   created_at: string
 }
 
