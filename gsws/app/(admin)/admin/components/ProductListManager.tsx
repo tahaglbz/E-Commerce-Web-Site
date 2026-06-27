@@ -78,6 +78,10 @@ export default function ProductListManager() {
   const [savingProduct, setSavingProduct] = useState<Record<number, boolean>>({})
   const [savingVariant, setSavingVariant] = useState<Record<number, boolean>>({})
 
+  // ── Toplu Maliyet Güncelleme ───────────────────────────────────
+  const [bulkCost, setBulkCost] = useState<Record<number, string>>({})
+  const [savingBulkCost, setSavingBulkCost] = useState<Record<number, boolean>>({})
+
   // ── Yeni Ürün Modal ───────────────────────────────────────────────
   const [showAddModal, setShowAddModal] = useState(false)
   const [addForm, setAddForm] = useState<NewProductForm>(EMPTY_PRODUCT_FORM)
@@ -203,6 +207,44 @@ export default function ProductListManager() {
         : p
     ))
     showToast('✅ Varyant güncellendi')
+  }
+
+  // ── TOPLU MALİYET GÜNCELLEME ────────────────────────────────────
+  async function saveBulkCostPrice(product: ProductWithVariants) {
+    const costStr = bulkCost[product.id]
+    const costVal = parseFloat(costStr)
+    if (!costStr || isNaN(costVal) || costVal < 0) return showToast('Geçerli bir maliyet girin', false)
+
+    setSavingBulkCost((prev) => ({ ...prev, [product.id]: true }))
+
+    const variantIds = product.variants.map((v) => v.id)
+    const { error } = await supabase
+      .from('product_variants')
+      .update({ cost_price: costVal })
+      .in('id', variantIds)
+
+    setSavingBulkCost((prev) => ({ ...prev, [product.id]: false }))
+
+    if (error) return showToast(`Hata: ${error.message}`, false)
+
+    // Tüm varyantların cost_price'ını güncelle (state)
+    setProducts((prev) => prev.map((p) =>
+      p.id === product.id
+        ? { ...p, variants: p.variants.map((v) => ({ ...v, cost_price: costVal })) }
+        : p
+    ))
+    // Inline variant state'lerini de güncelle
+    setInlineVariant((prev) => {
+      const updated = { ...prev }
+      product.variants.forEach((v) => {
+        if (updated[v.id]) {
+          updated[v.id] = { ...updated[v.id], cost_price: String(costVal) }
+        }
+      })
+      return updated
+    })
+    setBulkCost((prev) => ({ ...prev, [product.id]: '' }))
+    showToast(`✅ ${product.variants.length} varyanta ${costVal.toFixed(2)} ₺ maliyet uygulandı`)
   }
 
   // ─────────────────────────────────────────────────────────────────
@@ -458,6 +500,20 @@ export default function ProductListManager() {
                         className="w-20 bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-pink-500 transition"
                       />
                       <span className="text-xs text-zinc-500">₺</span>
+                      {/* Ortalama Maliyet Göstergesi */}
+                      {product.variants.length > 0 && (() => {
+                        const costs = product.variants.map((v) => v.cost_price ?? 0)
+                        const avg = costs.reduce((a, b) => a + b, 0) / costs.length
+                        return avg > 0 ? (
+                          <span className="text-xs text-amber-400/80 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded ml-1" title="Ort. Maliyet">
+                            M: {avg.toFixed(0)}₺
+                          </span>
+                        ) : (
+                          <span className="text-xs text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded ml-1" title="Maliyet girilmemiş">
+                            M: —
+                          </span>
+                        )
+                      })()}
                     </div>
 
                     {/* Stok Inline */}
@@ -504,6 +560,41 @@ export default function ProductListManager() {
                   {/* ── VARYANLAR (Genişletilmiş) ── */}
                   {isExpanded && product.variants.length > 0 && (
                     <div className="bg-zinc-950/60 border-t border-zinc-800 px-6 py-4">
+
+                      {/* ── TOPLU MALİYET GÜNCELLEME BARI ── */}
+                      <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 mb-4">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-lg">💰</span>
+                            <div>
+                              <p className="text-xs font-bold text-amber-400 uppercase tracking-wide">Toplu Maliyet Güncelle</p>
+                              <p className="text-xs text-zinc-500">Tüm varyantlara aynı geliş fiyatını uygula</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-1 sm:justify-end">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={bulkCost[product.id] ?? ''}
+                              onChange={(e) => setBulkCost((prev) => ({ ...prev, [product.id]: e.target.value }))}
+                              placeholder="Geliş fiyatı (₺)"
+                              className="w-40 bg-zinc-950 border border-amber-500/40 rounded-xl px-4 py-2.5 text-sm text-amber-300 placeholder-zinc-600 focus:outline-none focus:border-amber-400 transition font-semibold"
+                            />
+                            <button
+                              onClick={() => saveBulkCostPrice(product)}
+                              disabled={savingBulkCost[product.id] || !bulkCost[product.id]}
+                              className="px-5 py-2.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-400 text-sm font-bold rounded-xl transition disabled:opacity-40 flex items-center gap-2 whitespace-nowrap"
+                            >
+                              {savingBulkCost[product.id] ? (
+                                <span className="w-4 h-4 rounded-full border-2 border-amber-400/30 border-t-amber-400 animate-spin" />
+                              ) : '⚡'}
+                              Tümüne Uygula ({product.variants.length})
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
                       <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-3">
                         Varyantlar ({product.variants.length})
                       </p>
