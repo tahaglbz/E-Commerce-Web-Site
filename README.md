@@ -49,7 +49,7 @@ Proje, yüksek performans, hız, tip güvenliği ve esneklik odağıyla modern w
 
 Kod karmaşasını önlemek, yapay zeka modelleriyle yapılan ortak geliştirmelerde kod bütünlüğünü korumak ve bakım süreçlerini kolaylaştırmak adına proje **Bileşen Bazlı (Componentization)** modüler mimariye sahiptir:
 
-*   Dehasal sayfalar (örneğin Admin ana sayfası) tek bir dosya halinde tutulmak yerine; sipariş tablosunu yöneten, kuponları kontrol eden ve sepette kalanları izleyen bağımsız alt bileşenlere (`OrderManagement.tsx`, `CouponManager.tsx`, `AbandonedCarts.tsx`) bölünmüştür.
+*   Bileşen sayfalar (örneğin Admin ana sayfası) tek bir dosya halinde tutulmak yerine; sipariş tablosunu yöneten, kuponları kontrol eden ve sepette kalanları izleyen bağımsız alt bileşenlere (`OrderManagement.tsx`, `CouponManager.tsx`, `AbandonedCarts.tsx`) bölünmüştür.
 *   Ana sayfalar sadece bu bileşenleri şık bir sekme (Tab) sistemiyle koordine eden hafif ve temiz bir yapıya kavuşturulmuştur.
 
 ---
